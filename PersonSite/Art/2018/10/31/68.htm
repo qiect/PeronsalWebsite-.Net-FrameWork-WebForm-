@@ -1,0 +1,373 @@
+﻿
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+	红领巾社区
+</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!--开启响应式布局-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="description" /><meta name="author" /><link rel="icon" href="/images/logo.jpg" /><link href="/js/bootstrap/css/bootstrap.css" rel="stylesheet" />
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/js/common.js"></script>
+    <style>
+        /*
+        * Style tweaks
+        * --------------------------------------------------
+        */
+        html,
+        body {
+            overflow-x: hidden; /* Prevent scroll on narrow devices */
+            /*font-family: KaiTi;*/
+        }
+
+        body {
+            padding-top: 70px;
+        }
+
+        footer {
+            padding: 30px 0;
+        }
+    </style>
+    <script type="text/javascript">
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        var loginFinish = function (data) {
+            if (data == "ok") {
+                //alert("成功");
+                $("#divLogin").dialog("close"); //登录成功关闭窗口
+                checkLogin();//登录成功，刷新登录区域的显示
+            }
+            else {
+                alert("用户名密码错误");
+            }
+        };
+        $(function () {
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+
+        $(function () {
+            //绑定菜单列表
+            $.post("/ajax/GetChannel.ashx", { "action": "parent" }, function (data) {
+                var chas = $.parseJSON(data);
+                for (var i = 0; i < chas.length; i++) {
+                    var cha = chas[i];
+                    $('<li><a href="/Art/ViewChannel.aspx?id=' + cha.Id + '">' + cha.Name + '</a></li>').appendTo("#header-menu");
+                }
+            })
+        })
+    </script>
+    
+    
+    
+    
+    <script src="/js/common.js"></script>
+    <script type="text/javascript">
+        //提交评论完成后的处理
+        var postFinish = function (data) {
+            //var oEditor = CKEDITOR.instances.txtComment;
+            if (data == "ok") {
+                //把评论的内容添加到界面上
+                $("<li>"+$("#txtComment").val()+"</li>").appendTo("#ulComments");
+                //$("<li>" + oEditor.getData() + "</li>").appendTo("#ulComments");
+
+
+            }
+            else if (data == "mod") {
+                alert("等待审核");
+            }
+            else if (data == "banned") {
+                alert("您的评论内容含有禁用词汇，请注意文明用语！");
+            }
+            else {
+                alert("服务器返回错误:" + data);
+            }
+            //清空CKEditor
+            //oEditor.setData("");//设置txtComment的内容也不能影响CKEditor
+            $("#txtComment").val("");//评论提交成功后清除文本框
+        };
+        $(function () {
+            //启动的时候通过ajax加载评论
+            $.post("/ajax/GetComments.ashx", { "articleId": "251" },
+            function (data) {
+                var comments = $.parseJSON(data);//和eval一样是把json字符串转换为对象
+                for (var i = 0; i < comments.length; i++) {
+                    //把每条评论添加到ulComments上
+                    var comment = comments[i];
+                    $("<li>" + ubbToHtml(comment.Msg) + "</li>").appendTo("#ulComments");
+                }
+            });
+            //todo:做静态页的时候思考为什么通过ajax加载评论，为什么有的网站在另外一个页面显示评论
+            $("#btnPostComment").click(function () {
+                var msg = $("#txtComment").val();
+                //判断是否为空
+                if (msg == null || msg == "" || msg == undefined) {
+                    alert("请输入评论内容");
+                    return;
+                }
+                //CKEditor是把原先的textarea替换（replace）调，然后画自己的内容，所以读取textarea的value并不能得到CKEditor当前编辑的内容
+                //var oEditor = CKEDITOR.instances.txtComment;
+                //var msg = oEditor.getData();
+                //通过ajax提交评论
+                $.post("/ajax/PostComment.ashx",
+                    { "articleId": "251", "msg": msg },
+                    postFinish);
+            });
+        });
+
+        //    $(function () {
+        //        CKEDITOR.replace('txtComment',
+        //{
+        //    extraPlugins: 'bbcode',
+        //    removePlugins: 'bidi,button,dialogadvtab,div,filebrowser,flash,format,forms,horizontalrule,iframe,indent,justify,liststyle,pagebreak,showborders,stylescombo,table,tabletools,templates',
+        //    toolbar:
+        //    [
+        //        ['Source', '-', 'Save', 'NewPage', '-', 'Undo', 'Redo'],
+        //        ['Find', 'Replace', '-', 'SelectAll', 'RemoveFormat'],
+        //        ['Link', 'Unlink', 'Image'],
+        //        '/',
+        //        ['FontSize', 'Bold', 'Italic', 'Underline'],
+        //        ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+        //        ['TextColor', '-', 'Smiley', 'SpecialChar', '-', 'Maximize']
+        //    ],
+        //    smiley_images:
+        //    [
+        //        'regular_smile.gif', 'sad_smile.gif', 'wink_smile.gif', 'teeth_smile.gif', 'tounge_smile.gif',
+        //        'embaressed_smile.gif', 'omg_smile.gif', 'whatchutalkingabout_smile.gif', 'angel_smile.gif', 'shades_smile.gif',
+        //        'cry_smile.gif', 'kiss.gif'
+        //    ],
+        //    smiley_descriptions:
+        //    [
+        //        'smiley', 'sad', 'wink', 'laugh', 'cheeky', 'blush', 'surprise',
+        //        'indecision', 'angel', 'cool', 'crying', 'kiss'
+        //    ]
+        //});
+        //    });
+    </script>
+    <script type="text/javascript">
+        var rateFinish = function (data) {
+            if (data == "duplicate") {
+                alert("同一段视频24小时之内只能打分一次");
+            }
+            else {
+                alert("打分成功");
+            }
+        }
+        var imgStyle = function () {
+            $("img").addClass("img-responsive");
+        }
+
+        $(function () {
+            imgStyle();
+            $("#btnDing").button({
+                icons: { primary: 'ui-icon-check' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "251", "action": 1 }, rateFinish);
+            });
+            $("#btnCai").button({
+                icons: { primary: 'ui-icon-closethick' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "251", "action": -1 }, rateFinish);
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/Index.aspx">红领巾社区</a>
+            </div>
+            <div id="navbar" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav" id="header-menu">
+                    <li class="active"><a href="/Index.aspx">首页</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li id="divLoginArea">
+                        <a href="javascript:;" onclick="modaldemo()">登录</a>
+                    </li>
+                    <li id="divLoginOutArea" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">欢迎您，<span id="spanUserName"></span><span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/FindPassword.aspx">修改密码</a></li>
+                            <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+            </div>
+
+            <!-- /.nav-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- /.navbar -->
+    <div class="container">
+        <form method="post" action="./ViewArticle.aspx?id=251" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTIwNzQ0MjkzMjhkZNbbeL38Ox0VsgdXW+ie5WCZQJ22fxZlT9COXWbfTw20" />
+
+            
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="text-primary">
+                灵枢64 阴阳二十五人-黄帝内经白话文灵枢<br />
+            </h4>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div id="htmlContent" class="contentbox">      <font face="黑体"><font size="5"><font ><strong>1阴阳二十五人原文和白话文翻译:</strong></font></font></font><br /> 　　<font >【原文】黄帝曰：余闻阴阳之人何如？</font><br /> 　　<font >【翻译】黄帝说：我听说有属阴或属阳之人，是怎样的？</font><br /> <br /> 　　<font >【原文】伯高曰：天地之间，六合之内，不离于五，人亦应之。故五五二十五人之政，而阴阳之人不与焉。其态又不合于众者五，余已知之矣。愿闻二十五人之形，血气之所生，别而以候，从外知内，何如？</font><br /> 　　<font >【翻译】伯高说：天地之间，宇宙之内，都离不开五这个数，人也和它相应。所以，人有五五二十五种类型，而所谓阴阳之人是不在其内的。阴阳之人的形态与一般人不同，他们有太阴、少阴、太阳、少阳、阴阳和平五种，这些我已经知道了。我想听听二十五种人的形态，了解他们因血气差异所形成的特征，从而治疗时能够分别候察，由外知内，可以满足我的要求吗？</font><br /> <br /> 　　<font >【原文】歧伯曰：悉乎哉问也，此先师之秘也，虽伯高犹不能明之也。</font><br /> 　　<font >【翻译】岐伯说：问得好详细啊！这是先师的秘要，就连伯高也还不能了解它呢。</font><br /> <br /> 　　<font >【原文】黄帝避席遵循而却曰：余闻之得其人弗教，是谓重失，得而泄之，天将厌之，余愿得而明之，金柜藏之，不敢扬之。</font><br /> 　　<font >【翻译】黄帝离席却步，恭敬地说：我听说，遇到适当的人而不把秘学传授给他，这是过于慎秘；获得了秘学而随随便便泄露出去，天所不容。我希望得到这秘学并加以阐明，把它藏在金柜里面，不敢轻易外传。</font><br /> <br /> 　　<font >【原文】歧伯曰：先立五形金木水火土，别其五色，异其五形之人，而二十五人具矣。</font><br /> 　　<font >【翻译】岐伯说：首先确立金、木、水、火、土五种形态，区别五色，分开五声，二十五种人就齐备了。</font><br /> <br /> 　　<font >【原文】黄帝曰：愿卒闻之。</font><br /> 　　<font >【翻译】黄帝说：请全部讲给我听。</font><br /> <br /> 　　<font >【原文】歧伯曰：慎之慎之，臣请言之。</font><br /> 　　<font >【翻译】岐伯说：审慎啊，审慎啊！让我来谈谈这个问题吧。</font><br /> <br /> 　　<font >【原文】木形之人，比于上角似于苍帝，其为人苍色，小头，长面大肩背直身小，手足好。有才，劳心少力多忧，劳于事，能春夏不能秋冬感而病生。足厥阴，佗佗然，大角之人比于左足少阳，少阳之上遗遗然。左角之人比于右足少阳，少阳之下随随然。钛角之人，比于右足少阳，少阳之上推推然。判角之人比于左足少阳，少阳之下枯枯然。</font><br /> 　　<font >【翻译】木形的人，同五音中的上角相比类，与天上的东方苍帝相似。其特征是：苍色，小头，长面，大肩，平背，直身，手足小，有才气，好劳心，力小，常为各种事务忧心劳神。耐春夏，不耐秋冬，感受了秋冬不正之气就会生病。这一类型的人，属于足厥阴肝经，他们的体态是优美的。木形中属于太角的一类人，比类于左足少阳，少阳的上部，其情态是意满自得的。木形中属于左角的一类人，比类于右足少阳，少阳的下部，其表现是和顺的。木形中属于釱角的一类人，比类于右足少阳，少阳的上部，其表现是意气昂扬的。木形中属于判角的一类人，比类于左足少阳，少阳的下部，其表现是公正坦直的。</font><br /> <br /> 　　<font >【原文】火形之人，比于上征，似于赤帝。其为人赤色广脱面小头，好肩背，髀腹小手足，行安地疾心，行摇肩背肉满。有气轻财少信多虑，见事明好颜，急心不寿暴死。能春夏不能秋冬，秋冬感而病生，手少阴核核然。质征之人，比于左手太阳，太阳之上，肌肌然，少征之人比于右手太阳，太阳之下慆慆然，右征之人比于右手太阳，太阳之上鲛鲛然。质判之人，比于左手太阳，太阳之下支支颐颐然。</font><br /> 　　<font >【翻译】火形的人，同五音中的上徵相比类，与天上的南方赤帝相似。其特征是：赤色，齿本宽，尖脸，小头，肩、背、髀、腹各部发育都好，手足小，脚步稳，走路快而且摇晃肩膀，背部肌肉丰满，好使气，轻钱财，不轻易相信他人，多疑虑，见事明白，容颜美好，心急，不能长寿，往往暴亡。耐春夏，不耐秋冬，秋冬时容易感受不正之气而得病。这一类型的人，属于手少阴心经，其情态为诚实可信的样子。火形中属于质徵的一类人，比类于左手太阳小肠经，太阳的上部，其表现是精神旺盛的。火形中属于少徵的一类人，比类于右手太阳小肠经，太阳的下部，其表现是乐陶陶的。火形中属于右徵的一类人，比类于右手太阳小肠经，太阳的上部，其表现是欢欣踊跃的。火形中属于判徵的一类人，比类于左手太阳小肠经，太阳的下部，其表现是逍遥自得的。</font><br /> <br /> 　　<font >【原文】土形之人，比于上宫，似于上古黄帝，其为人黄色圆面、大头、美肩背、大腹、美股胫、小手足、多肉、上下相称行安地，举足浮。安心，好利人不喜权势，善附人也。能秋冬不能春夏，春夏感而病生，足太阴，敦敦然。大宫之人比于左足阳明，阳明之上婉婉然。加宫之人，比于左足阳明，阳明之下坎坎然。少宫之人，比于右足阳明，阳明之上，枢枢然。左宫之人，比于右足阳明，阳明之下，兀兀然。</font><br /> 　　<font >【翻译】土形的人，同五音中的上宫相比类，与天上中央一方的黄帝相似。其特征是：黄色，圆脸，大头，肩背发育好，大腹，大腿、小腿长得好，手足小，身体多肉，上下匀称，走路脚步稳，举足轻，安心，爱作对别人有利的事，不喜好权势，而惯常依附他人。耐秋冬，不耐春夏，春夏时常感受不正之气而得病。这一类的人，属于足太阴脾经，其表现是诚实厚道。土形中属于太宫的一类人，比类于左足阳明胃经，阳明的上部，其表现是和顺的。土形中属于加宫的一类人，比类于左足阳明，阳明的下部，其表现是喜悦的。土形中属于少宫的一类人，比类于右足阳明，阳明的上部，其表现是圆转灵活的。土形中属于左宫的一类人，比类于右足阳明，阳明的下部，其表现是善良的。</font><br /> <br /> 　　<font >【原文】金形之人比于上商，似于白帝，其为人方面白色、小头、小肩背小腹、小手足如骨发踵外，骨轻。身清廉，急心静悍，善为吏，能秋冬，不能春夏，春夏感而病生。手太阴敦敦然，釱商之人比于左手阳明，阳明之上，廉廉然。右商之人，比于左手阳明，阳明之下脱脱然。左商之人比于右手阳明，阳明之上监监然。少商之人，比于右手阳明，阳明之下，严严然。</font><br /> 　　<font >【翻译】金形的人，同五音中的上商相比类，与天上的西方白帝相似。其特征是：方脸，白色，头小，肩背小，腹小，手足小，足跟处骨头象是要露出来，骨轻，为人清廉，办事不拖踏，外表柔静而内实悍勇，擅长充任下级官吏。耐秋冬，不耐春夏，春夏时常感受不正之气而得病。这一类的人，属于手太阴肺经，其特点是处事果决敢断。金形中属于釱商的一类人，比类于左手阳明，阳明的上部，其表现是锋芒毕露。金形中属于右商的一类人，比类于左手阳明，阳明的下部，其表现是从容舒缓的。金形中属于左商的一类人，比类于右手阳明，阳明的上部，其表现是明察的。金形中属于少商的一类人，比类于右手阳明，阳明的下部，其表现是庄重威严的。</font><br /> <br /> 　　<font >【原文】水形之人，比于上羽，似于黑帝，其为人，黑色面不平，大头廉颐，小肩大腹动手足，发行摇身下尻长，背延延然。不敬畏善欺绍人，戮死。能秋冬不能春夏，春夏感而病生。足少阴汗汗然。大羽之人，比于右足太阳，太阳之上，颊颊然。少羽之人，比于左足太阳，太阳之下洁洁然。桎之为人，比于左右太阳，太阳之上安安然。是故五形之人二十五变者，众之所以相欺者是也。</font><br /> 　　<font >【翻译】水形的人，同五音中的上羽相比类，与天上的北方黑帝相似。其特征是：黑色，面部不平正，大头，面颊宽，肩小，腹大，手足小，行走时身体摇摆，自腰至尻距离较长，背部也比较长。无所敬畏，好欺骗人，往往遭杀戮而死。耐秋冬，不耐春夏，春夏时常感受不正之气而得病。这一类的人，属于足少阴肾经，他们的身上常常是汗津津的。水形中属于大羽的一类人，比类于右足太阳，太阳的上部，其表现是意满自得的。水形中属于少羽的一类人，比类于左足太阳，太阳的下部，其表现是性行纡曲而不直爽。水形中属于众羽的一类人：比类于右足太阳，太阳的下部，其表现是洁身自好的。水形中属于桎羽的一类人，比类于左足太阳，太阳的上部，其表现是安闲恬静的。所以，五形之人有二十五种变化，彼此各有短长，众人之间之所以有大欺小，强凌弱的现象，原因也在于此。</font><br /> <br /> 　　<font >【原文】黄帝曰：得其形，不得其色何如？</font><br /> 　　<font >【翻译】黄帝问：人获得了适合五行的形体特征，而不具有相应的肤色，会怎么样呢？</font><br /> <br /> 　　<font >【原文】歧伯曰：形胜色，色胜形者，至其胜时年加，感则病行，失则忧矣。形色相得者，富贵大乐。</font><br /> 　　<font >【翻译】岐伯说：形体的五行属性克于肤色的五行属性，或是肤色的五行属性克于形体的五行属性，再碰上相克的时令和应避忌的岁数，感受了邪气，就会得病，如果治疗不及时或治疗不当，就值得忧虑了。如果形与色相适合，则将富而且贵，受大快乐。</font><br /> <br /> 　　<font >【原文】黄帝曰：其形色相当胜之时，年加可知乎？</font><br /> 　　<font >【翻译】黄帝问：如果人的形体的五行属性与肤色的五行属性相克，应避忌的年岁可以知道吗？</font><br /> <br /> 　　<font >【原文】歧伯曰：凡年忌下上之人，大忌常加七岁，十六岁、二十五岁、三十四岁、四十三岁、五十二岁、六十一岁皆人之大忌，不可不自安也，感则病行，失则忧矣，当此之时，无为奸事，是谓年忌。</font><br /> 　　<font >【翻译】岐伯说：凡年忌，五分老幼，大忌常加九岁，从七岁起，而后是十六岁，二十五岁，三十四岁，四十三岁，五十二岁，六十一岁，这都是人的大忌之年，不可不自加保重，否则，感受了不正之气，就会得病，如失于治疗，就有危险。凡遇大忌之年，不要做奸邪之事，这就叫做年忌。</font><br /> <br /> 　　<font >【原文】黄帝曰：夫子之言脉之上下，血气之候似知形气，奈何？</font><br /> 　　<font >【翻译】黄帝问：先生说，候察手足三阳经脉上下部的血气，就可知道形气的强弱，是怎样的呢？</font><br /> <br /> 　　<font >【原文】歧伯曰：足阳明之上血气盛则髯美长，血少气多则髯短，故气少血多则髯少，血气皆少则无髯。两吻多画，足阳明之下血气盛则下毛美长至胸，血多气少则下毛美短至脐，行则善高举足，足趾少肉足善寒，血少气多则肉而善瘃，血气皆少则无毛有则稀、枯悴，善痿厥，足痹。</font><br /> 　　<font >【翻译】岐伯说：足阳明经的上部，如血气充盛，则胡须美而且长；血少气多，则胡须短；气少血多，则胡须稀少；血气都少，则没有胡须，而且嘴角多皱纹。足阳明经的下部，如血气充盛，则阴毛美而且长，甚至向上衍生直至胸部；血多气少，则阴毛美而短，向上衍生至脐，走路时足举得高，足大指肉少，足部易觉寒冷，血少气多，则下肢肌肉易生冻疮；血气都少，则无阴毛，即使有，也是稀少而枯恶，并且容易发生两足痿厥或痹痛的症状。</font><br /> <br /> 　　<font >【原文】足少阳之上，气血盛则通髯美长，血多气少则通髯美短，血少气多则少髯，血气皆少则无须，感于寒湿则善痹。骨痛爪枯也。足少阳之下，血气盛则胫毛美长，外踝肥；血多气少则胫毛美短，外踝皮坚而厚，血少气多则胻毛少，外踝皮薄而软，血气皆少则无毛，外踝瘦无肉。</font><br /> 　　<font >【翻译】足少阳经的上部，如血气充盛，则胡须连鬓而生，美而且长；血多气少，则连鬓胡须美而短；血少气多，则连鬓胡须稀少；血气都少，则无鬓须，感受了寒湿之气，两足容易发生痹痛、骨痛及足指爪甲干枯等症。足少阳经的下部，如血气充盛，则小腿上的寒毛美而且长，足外踝肌肉肥厚；血多气少，则小腿上的寒毛美而短，足外踝的皮硬而厚：血少气多，则小腿上的寒毛稀少，足外踝的皮薄而软；血气都少，则小腿上无寒毛，足外踝瘦而无肉。</font><br /> <br /> 　　<font >【原文】足太阳之上，血气盛则美眉，眉有毫毛血多气少则恶眉，面多少理，血少气多则面多肉，血气和则美色，足太阳之下，血气盛则跟肉满，踵坚，气少血多则瘦，跟空，血气皆少则善转筋，踵下痛。</font><br /> 　　<font >【翻译】足太阳经的上部，如血气充盛，则两眉美好，眉中生有长毛；血多气少，则两眉枯悴难看，而且面部有许多细小的纹理；血少气多，则面部多肉；血气和调，则面色美好。足太阳经的下部，如血气充盛，则足跟肌肉饱满而坚实；气少血多，则足跟瘦而无肉；血气都少，则足部易转筋，足跟疼痛。</font><br /> <br /> 　　<font >【原文】手阳明之上，血气盛则髭美。血少气多则髭恶，血气皆少则无髭。手阳明之下血气盛则腋下毛美，手鱼肉以温，气血皆少则手瘦以寒。</font><br /> 　　<font >【翻译】手阳明经的上部，如血气充盛，则嘴上边的胡子长得好；血少气多，则嘴上边的胡子长得不好；血气都少，则嘴上边没有胡子。手阳明经的下部，如血气充盛，则腋毛长得好，而且手鱼部多肉、温暖；气血都少，则两手枯瘦、发凉。</font><br /> <br /> 　　<font >【原文】手少阳之上，血气盛则眉美以长，耳色美，血气皆少则耳焦恶色。手少阳之下，血气盛则手卷多肉以温，血气皆少则寒以瘦，气少血多则瘦以多脉。</font><br /> 　　<font >【翻译】手少阳经的上部，如血气充盛，则眉毛美而且长，耳朵皮肉之色美好；血气都少，则两耳枯悴色恶。手少阳的下部，如血气充盛，则手多肉而温暖；血气都少，则手瘦瘠而发凉；气少血多，则手瘦瘠，脉络显露于外。</font><br /> <br /> 　　<font >【原文】手太阳之上，血气盛则多须，面多肉以平，血气皆少则面瘦恶色。手太阳之下，血气盛则掌肉充满，血气皆少则掌瘦以寒。</font><br /> 　　<font >【翻译】手太阳经的上部，如血气充盛，则多生髭须，面部多肉而平正；血气都少，则面瘦而色恶。手太阳经的下部，如血气充盛，则手掌肌肉饱满；血气都少，则手掌枯瘦而发凉。</font><br /> <br /> 　　<font >【原文】黄帝曰：二十五人者，刺之有约乎？</font><br /> 　　<font >【翻译】黄帝问：这二十五种人，如对他们加以针治，有应准依的法则吗？</font><br /> <br /> 　　<font >【原文】歧伯曰：美眉者，足太阳之脉，气血多，恶眉者，血气少，其肥而泽者，血气有余，肥而不泽者，气有余，血不足，瘦而无泽者，气血俱不足，审察其形有气有余不足而调之，可以知逆顺矣。</font><br /> 　　<font >【翻译】岐伯说：眉毛长得好的，是由于足太阳经脉，其气血盛多；眉毛长得不好的，也是由于足太阳经脉，其血气都少；肥胖而肤色光润的，是血气都有余；肥胖而肤色不光润的，是气有余而血不足；瘦瘠而肤色没有光泽的，是气血都不足。审察其形气有余、不足的情况，据此对他们加以调治，就可以知道逆与顺的区别了。</font><br /> <br /> 　　<font >【原文】黄帝曰：刺其诸阴阳奈何？</font><br /> 　　<font >【翻译】黄帝问：针刺诸阴经、阳经，应怎样呢？</font><br /> <br /> 　　<font >【原文】歧伯曰：按其寸口人迎，以调阴阳，切循其经络之凝涩，结而通者，此于身皆为痛痹，甚则不行，故凝涩，凝涩者，致气以温之，血和乃止。其结络者，脉结血不和，决之乃行，故曰：气有余于上者，导而下之，气不足于上者，推而休之，其稽留不至者，因而迎之，必明于经隧，乃能持之，寒与热争者，导而行之，其宛陈血不结者，则而予之，必先明知二十五人，则血气之所在，左右上下，刺约毕也。</font><br /> 　　<font >【翻译】岐伯说：诊按寸口脉和人迎脉，测知阴阳的盛衰而加以调治，并循沿经络按切，诊察其凝涩与否，凝结不通的，身体会出现痛痹，严重的，则不能行走，所以知其血气凝涩。血气凝涩的，应导致其阳气以温通血脉，待到血脉和调，就停止这种治疗。由于凝结，致使脉中郁积，血不畅行，须开而通之才可使血畅行。所以说：上部之气盛多有余的，应导而使之下行；上部之气不足的，应推而使之上扬；气迟滞不至的，则应采用多种手法，迎之接之，使气必至。必须明了经脉的通道，才能掌握好治疗方法。寒与热相争，就应加以宣导而使气血畅行；血有所蕴积而尚未凝结的，可从旁侧取穴予以刺治。一定先要了解二十五种人的类型，辨别血气盛衰及有余不足的所在，或左侧或右侧，或上部或下部，取适当穴位予以刺治，那么，针刺的法则就尽在其中了。</font>         <div class="chapter_Turnpage">          <div style="text-align:center;padding-bottom:10px;"></div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-10">
+            <strong>发表时间：2018/10/31 13:08:04
+            </strong>
+        </div>
+        <div class="col-lg-2">
+            <a class="btn btn-default" id="btnDing"><span class="glyphicon glyphicon-thumbs-up"></span>推荐</a>
+            <a class="btn btn-default" id="btnCai"><span class="glyphicon glyphicon-thumbs-down "></span>反对</a>
+        </div>
+    </div>
+    <hr />
+    <div class="row">
+        <div class="col-lg-12">
+            <h4>评论列表</h4>
+            <div class="">
+                <ol id="ulComments">
+                </ol>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <textarea class="form-control" placeholder="说两句吧..." id="txtComment"></textarea><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-1 col-lg-offset-11">
+            <input type="button" class="btn btn-default" value="评论" id="btnPostComment" />
+        </div>
+    </div>
+
+        
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E1B165C8" /></form>
+        
+        
+        <hr />
+        <footer>
+            <p>&copy; 本站所有信息均采集于互联网,如有侵权请联系：qctvip@vip.163.com</p>
+            <div class="hidden">
+            <script src="https://s19.cnzz.com/z_stat.php?id=1275095046&web_id=1275095046" type="text/javascript"></script>
+            </div>
+        </footer>
+    </div>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">用户登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="txtUserName" class="col-sm-2 col-md-5 control-label">用户名</label>
+                            <div class="col-sm-3">
+                                <input type="email" class="form-control" id="txtUserName" placeholder="用户名" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="txtPwd" class="col-sm-2 col-md-5 control-label">密码</label>
+                            <div class="col-sm-3">
+                                <input type="password" class="form-control" id="txtPwd" placeholder="密码" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10 col-md-offset-5">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" />
+                                        记住密码
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="text-left">
+                        <a href="/RegUser.aspx">注册</a>
+                        <a href="/FindPassword.aspx">忘记密码?</a>
+                    </div>
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Visual Studio Browser Link -->
+<script type="application/json" id="__browserLink_initializationData">
+    {"appName":"Unknown","requestId":"beafb3889a01491fa8157f5fd6ea3a0e"}
+</script>
+<script type="text/javascript" src="http://localhost:3285/f03e4909866e4711a8dd495b7f39e2ba/browserLink" async="async"></script>
+<!-- End Browser Link -->
+
+</body>
+</html>

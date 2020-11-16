@@ -1,0 +1,373 @@
+﻿
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+	红领巾社区
+</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!--开启响应式布局-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="description" /><meta name="author" /><link rel="icon" href="/images/logo.jpg" /><link href="/js/bootstrap/css/bootstrap.css" rel="stylesheet" />
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/js/common.js"></script>
+    <style>
+        /*
+        * Style tweaks
+        * --------------------------------------------------
+        */
+        html,
+        body {
+            overflow-x: hidden; /* Prevent scroll on narrow devices */
+            /*font-family: KaiTi;*/
+        }
+
+        body {
+            padding-top: 70px;
+        }
+
+        footer {
+            padding: 30px 0;
+        }
+    </style>
+    <script type="text/javascript">
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        var loginFinish = function (data) {
+            if (data == "ok") {
+                //alert("成功");
+                $("#divLogin").dialog("close"); //登录成功关闭窗口
+                checkLogin();//登录成功，刷新登录区域的显示
+            }
+            else {
+                alert("用户名密码错误");
+            }
+        };
+        $(function () {
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+
+        $(function () {
+            //绑定菜单列表
+            $.post("/ajax/GetChannel.ashx", { "action": "parent" }, function (data) {
+                var chas = $.parseJSON(data);
+                for (var i = 0; i < chas.length; i++) {
+                    var cha = chas[i];
+                    $('<li><a href="/Art/ViewChannel.aspx?id=' + cha.Id + '">' + cha.Name + '</a></li>').appendTo("#header-menu");
+                }
+            })
+        })
+    </script>
+    
+    
+    
+    
+    <script src="/js/common.js"></script>
+    <script type="text/javascript">
+        //提交评论完成后的处理
+        var postFinish = function (data) {
+            //var oEditor = CKEDITOR.instances.txtComment;
+            if (data == "ok") {
+                //把评论的内容添加到界面上
+                $("<li>"+$("#txtComment").val()+"</li>").appendTo("#ulComments");
+                //$("<li>" + oEditor.getData() + "</li>").appendTo("#ulComments");
+
+
+            }
+            else if (data == "mod") {
+                alert("等待审核");
+            }
+            else if (data == "banned") {
+                alert("您的评论内容含有禁用词汇，请注意文明用语！");
+            }
+            else {
+                alert("服务器返回错误:" + data);
+            }
+            //清空CKEditor
+            //oEditor.setData("");//设置txtComment的内容也不能影响CKEditor
+            $("#txtComment").val("");//评论提交成功后清除文本框
+        };
+        $(function () {
+            //启动的时候通过ajax加载评论
+            $.post("/ajax/GetComments.ashx", { "articleId": "196" },
+            function (data) {
+                var comments = $.parseJSON(data);//和eval一样是把json字符串转换为对象
+                for (var i = 0; i < comments.length; i++) {
+                    //把每条评论添加到ulComments上
+                    var comment = comments[i];
+                    $("<li>" + ubbToHtml(comment.Msg) + "</li>").appendTo("#ulComments");
+                }
+            });
+            //todo:做静态页的时候思考为什么通过ajax加载评论，为什么有的网站在另外一个页面显示评论
+            $("#btnPostComment").click(function () {
+                var msg = $("#txtComment").val();
+                //判断是否为空
+                if (msg == null || msg == "" || msg == undefined) {
+                    alert("请输入评论内容");
+                    return;
+                }
+                //CKEditor是把原先的textarea替换（replace）调，然后画自己的内容，所以读取textarea的value并不能得到CKEditor当前编辑的内容
+                //var oEditor = CKEDITOR.instances.txtComment;
+                //var msg = oEditor.getData();
+                //通过ajax提交评论
+                $.post("/ajax/PostComment.ashx",
+                    { "articleId": "196", "msg": msg },
+                    postFinish);
+            });
+        });
+
+        //    $(function () {
+        //        CKEDITOR.replace('txtComment',
+        //{
+        //    extraPlugins: 'bbcode',
+        //    removePlugins: 'bidi,button,dialogadvtab,div,filebrowser,flash,format,forms,horizontalrule,iframe,indent,justify,liststyle,pagebreak,showborders,stylescombo,table,tabletools,templates',
+        //    toolbar:
+        //    [
+        //        ['Source', '-', 'Save', 'NewPage', '-', 'Undo', 'Redo'],
+        //        ['Find', 'Replace', '-', 'SelectAll', 'RemoveFormat'],
+        //        ['Link', 'Unlink', 'Image'],
+        //        '/',
+        //        ['FontSize', 'Bold', 'Italic', 'Underline'],
+        //        ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+        //        ['TextColor', '-', 'Smiley', 'SpecialChar', '-', 'Maximize']
+        //    ],
+        //    smiley_images:
+        //    [
+        //        'regular_smile.gif', 'sad_smile.gif', 'wink_smile.gif', 'teeth_smile.gif', 'tounge_smile.gif',
+        //        'embaressed_smile.gif', 'omg_smile.gif', 'whatchutalkingabout_smile.gif', 'angel_smile.gif', 'shades_smile.gif',
+        //        'cry_smile.gif', 'kiss.gif'
+        //    ],
+        //    smiley_descriptions:
+        //    [
+        //        'smiley', 'sad', 'wink', 'laugh', 'cheeky', 'blush', 'surprise',
+        //        'indecision', 'angel', 'cool', 'crying', 'kiss'
+        //    ]
+        //});
+        //    });
+    </script>
+    <script type="text/javascript">
+        var rateFinish = function (data) {
+            if (data == "duplicate") {
+                alert("同一段视频24小时之内只能打分一次");
+            }
+            else {
+                alert("打分成功");
+            }
+        }
+        var imgStyle = function () {
+            $("img").addClass("img-responsive");
+        }
+
+        $(function () {
+            imgStyle();
+            $("#btnDing").button({
+                icons: { primary: 'ui-icon-check' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "196", "action": 1 }, rateFinish);
+            });
+            $("#btnCai").button({
+                icons: { primary: 'ui-icon-closethick' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "196", "action": -1 }, rateFinish);
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/Index.aspx">红领巾社区</a>
+            </div>
+            <div id="navbar" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav" id="header-menu">
+                    <li class="active"><a href="/Index.aspx">首页</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li id="divLoginArea">
+                        <a href="javascript:;" onclick="modaldemo()">登录</a>
+                    </li>
+                    <li id="divLoginOutArea" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">欢迎您，<span id="spanUserName"></span><span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/FindPassword.aspx">修改密码</a></li>
+                            <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+            </div>
+
+            <!-- /.nav-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- /.navbar -->
+    <div class="container">
+        <form method="post" action="./ViewArticle.aspx?id=196" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTIwNzQ0MjkzMjhkZNbbeL38Ox0VsgdXW+ie5WCZQJ22fxZlT9COXWbfTw20" />
+
+            
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="text-primary">
+                灵枢09 终始-黄帝内经白话文灵枢<br />
+            </h4>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div id="htmlContent" class="contentbox">      <font face="黑体"><font size="5"><font ><strong>1灵枢终始原文和白话文翻译:</strong></font></font></font><br /> 　　<font >【原文】凡刺之道，毕于终始，明知终始，五脏为纪，阴阳定矣。阴者主脏，阳者主腑，阳受气于四末，阴受气于五脏，故泻者迎之，补者随之，知迎知随，气可令和，和气之方，必通阴阳。五脏为阴，六腑为阳，传之后世，以血为盟。敬之者昌，慢之者亡。无道行私，必得夭殃。谨奉天道，请言终始。</font><br /> 　　<font >【翻译】大凡针刺的法则，全在《终始》篇里。明确了解了终始的意义，就可以确定阴经阳经的关系。阴经与五脏相通，阳经与六腑相通。阳经受气于四肢之末，阴经受气于五脏。所以泻法是迎而夺之，补法是随而济之。掌握了迎随补泻的方法，可以使脉气调和。而调和脉气的关键，一定要明白阴阳的规律，五脏在内为阴，六腑在外为阳。要想把这些理论传于后世，就要有坚定不移的信心和正确的学习态度，如果轻视它，这些理论和方法就可能失传，而那些庸医贪图名利，更不会有好下场。谨根据天地阴阳的道理来说明终始大义吧。</font><br /> <br /> 　　<font >【原文】终始者，经脉为纪。持其脉口人迎，以知阴阳有余不足，平与不平，天道毕矣。所谓平人者不病，不病者，脉口人迎应四时也，上下相应而俱往来也，六经之脉不结动也，本末之，寒温之，相守司也。形肉血气必相称也，是谓平人。少气者，脉口人迎俱少而不称尺寸也。如是者，则阴阳俱不足，补阳则阴竭，泻阴则阳脱。如是者可将以甘药，不可饮以至剂，如此者弗灸。不已者因而泻之，则五脏气坏矣。</font><br /> 　　<font >【翻译】所谓终始，是以十二经脉为纲纪，从脉口、人迎两穴，就可知道五脏六腑的阴阳有余与不足，平衡与不平衡，而阴阳盛衰的道理也就大致如此了。所说的平人就是没有疾病的人，没病人的脉口、人迎的脉象与四季相应，脉口、人迎互相呼应，往来不息，六经的脉搏动而不止。四时冷热虽有变化，脉口、人迎都能各自发挥本能而不相犯，形肉和血气也能协调一致，这就是所说的平人。气短的病人，脉口、人迎都虚弱无力，而尺肤和脉象又不相称。象这样的，就是阴阳都不足的象征，补阳就会使阴气衰竭，泻阴就会使阳气亡脱。这样的病人，只可用缓剂补养。如果不好，也可服用一些急剂。这种病，不过一段相当长的时间，是不容易好的。如不这样治疗，而用针刺的泻法，就会损伤五脏的真气。</font><br /> <br /> 　　<font >【原文】人迎一盛，病在足少阳，一盛而躁，病在手少阳，人迎二盛，病在足太阳，二盛而躁，病在手太阳，人迎三盛，病在足阳明，三盛而躁，病在手阳明。人迎四盛且大且数，名曰溢阳，溢阳为外格。</font><br /> 　　<font >【翻译】人迎脉大于寸口一倍，病在足少阳胆经；若大一倍而躁动的，病在手少阳三焦经。人迎脉大于寸口二倍，病在足太阳膀胱经；若大二倍而躁动的，病在手太阳小肠经。人迎脉大于寸口三倍，病在足阳明胃经；大三倍而躁动的，病在手阳明大肠经。人迎脉大于寸口四倍，而且搏动加快的，叫做溢阳。溢阳是六阳偏盛，格拒六阴，使阴阳脱节，称为外格。</font><br /> <br /> 　　<font >【原文】脉口一盛，病在足厥阴；厥阴一盛而躁，在手心主。脉口二盛，病在足少阴；二盛而躁，在手少阴。脉口三盛，病在足太阴；三盛而躁，在手太阴。脉口四盛且大且数者，名曰溢阴。溢阴为内关，内关不通，死不治。人迎与太阴脉口俱盛四倍以上，名曰关格。关格者与之短期。</font><br /> 　　<font >【翻译】寸口脉大于人迎一倍，病在足厥阴肝经；大一倍而躁动的，病在手厥阴心包络经。寸口脉大于人迎二倍，病在足少阴肾经；大二倍而躁动的，病在手少阴心经。寸口脉大于人迎三倍，病在足太阴脾经；大三倍而躁动的，病在手太阴肺经。寸口脉大于人迎四倍，而且搏动加快的，叫做溢阴。溢阴是六阴偏盛，不能与阳气相交，称为内关。内关则表里不通，是不可医治的死症。人迎与寸口的脉，都比平常大于四倍以上，叫做关格。遇到关格，死期就很近了。</font><br /> <br /> 　　<font >【原文】人迎一盛，泻足少阳而补足厥阴，二泻一补，日一取之，必切而验之，疏取之，上气和乃止。人迎二盛，泻足太阳补足少阴，二泻一补，二日一取之，必切而验之，疏取之，上气和乃止。人迎三盛，泻足阳明而补足太阴，二泻一补，日二取之，必切而验之，疏取之，上气和乃止。</font><br /> 　　<font >【翻译】人迎脉大于寸口一倍，应当泻足少阳胆经而补足厥阴肝经。泻法取二穴，补法取一穴，每两日针刺一次，还必须切按人迎与寸口，以察验病势的进退，如果出现躁动不安的情况，就取上部的经脉，直到脉气平和再停止。人迎脉大于寸口二倍，应当泻足太阳膀胱经而补足少阴肾经。泻法取二穴，补法取一穴，每两日针刺一次，还必须切按人迎与寸口，以察验病势的进退，如果出现躁动不安的情况，就取上部的经脉，直到脉气平和再止针。人迎脉大于寸口三倍，应当泻足阳明胃经而补足太阴脾经，泻法取二穴，补法取一穴，每日针刺两次，还必须切按人迎与脉口，以察验病势的进退，如果出现躁动不安的情况，就取上部的经脉，直到脉气平和再止针。</font><br /> <br /> 　　<font >【原文】脉口一盛，泻足厥阴而补足少阳，二补一泻，日一取之，必切而验之，疏而取，上气和乃止。脉口二盛，泻足少阴而补足太阳，二补一泻，二日一取之，必切而验之，疏取之，上气和乃止。脉口三盛泻足太阴而补足阳明，二补一泻，日二取之，必切而验之，疏而取之，上气和乃止。所以日二取之者，阳明主胃，大富于谷气，故可日二取之也。</font><br /> 　　<font >【翻译】寸口脉大于人迎一倍，应当泻足厥阴肝经而补足少阳胆经，补法取二穴，泻法取一穴，每日针刺一次，必须切按寸口与人迎，以察验病势的进退，如果出现躁动不安的情况，就取上部的经脉，直到脉气平和再止针。寸口脉大于人迎二倍，应当泻足少阴肾经而补足太阳膀胱经，补法取二穴，泻法取一穴，每二日针刺一次，还必须切按寸口与人迎，以察验病势的进退，如果出现躁动不安的情况，就取上部的经脉，直到脉气平和再止针。寸口脉大于人迎三倍，应当泻足太阴脾经而补足阳明胃经，补法取二穴，泻法取一穴，每日针刺两次，还必须切按寸口与人迎，以察验病势的进退，如果出现躁动不安的情况，就取上部的经脉，直到脉气平和，再止针。之所以每日针刺两次，是因为足阳明经主胃，谷气充盛，因此可以每日针刺两次。</font><br /> <br /> 　　<font >【原文】人迎与脉口俱盛三倍以上，命曰阴阳俱溢，如是者不开，则血脉闭塞，气无所行，流淫于中，五脏内伤。如此者因而灸之，则变易而为他病矣。</font><br /> 　　<font >【翻译】人迎与寸口都比平常大出三倍，叫做阴阳俱溢。象这样的病变，如不加以疏通，就会造成血脉闭塞，气血不畅，五脏内伤，在这种情况下，如果妄用灸法，很容易发生其它病变。</font><br /> <br /> 　　<font >【原文】凡刺之道，气调而止，补阴泻阳，音气益彰，耳目聪明。反此者，血气不行。</font><br /> 　　<font >【翻译】大凡针刺的原则，达到阴阳二气调和就要止针。要注意补阴泻阳，才能达到语音清朗有力，耳聪目明。反之，如果补泻不当，就会使血气不能正常运行。</font><br /> <br /> 　　<font >【原文】所谓气至而有效者，泻则益虚，虚者，脉大如其故而不坚也；坚如其故者，适虽言故，病未去也。补则益实，实者，脉大如其故而益坚也；夫如其故而不坚者，适虽言快，病未去也。故补则实、泻则虚，痛虽不随针，病必衰去。必先通十二经脉之所生病，而后可得传于终始矣。故阴阳不相移，虚实不相倾，取之其经。</font><br /> 　　<font >【翻译】所谓针下气至而获得疗效，是说实症用了泻法，由实转虚。虚的表现是脉象大如原来却不坚实。如果脉象仍坚实如故；虽说一时舒服，而病还没去。虚症用了补法，就会由虚转实。实的表现是脉象大如原来而更坚实，如果脉气大虽照旧而不坚实，虽说一时舒服，而病并没有去掉。所以正确运用补法，会使正气充实；正确运用泻法，会使病邪泄去。痛苦虽不能随针立愈，但病势肯定是减轻了。因此必须通晓十二经脉与各种疾病的关系，然后就可明白“终始”的大义了。阴经和阳经不会互相改变，虚症和实症也不会相反的，所以针治疾病，就要取其所属的经脉。</font><br /> <br /> 　　<font >【原文】凡刺之属，三刺至谷气，邪僻妄合，阴阳易居，逆顺相反，沉浮异处，四时不得稽留，淫泆须针而去。故一刺则阳邪出，再刺则阴邪出，三则则谷气至，谷气至而止。所谓谷气至者，已补而实，已泻而虚，故以知谷气至也。邪气独去者，阴与阳未能调而病知愈也。故曰：补则实，泻则虚，痛虽不随针，病必衰去矣。阴盛而阳虚，先补其阳，后泻其阴而和之、阴虚而阳盛，先补其阴后泻其阳而和之。</font><br /> 　　<font >【翻译】大凡针刺应注意的是采用三刺法使正气到来。那病邪不正之气与血气混合，导致阴阳紊乱，内阴僭越于外，外阳沉陷于内，气血运行逆顺颠倒，脉象沉浮异常，脉气与四时不相适应，血气或有稽留壅遏，或有淫佚过度，这些都必须用针刺来排除。因此，初刺浅层，使阳邪排出；再刺稍深，使阴邪排出；最后深刺至分肉之间，待正气来到，就可出针了。所谓谷气至，是说已经用了补法，正气就充实些，已经用了泻法，病邪就衰退了一些，由此即可知谷气已至。起初，只是邪气被排除了，而阴与阳的气血还没有调和，但是已能知道病就要痊愈了。所以说正确地运用补泻方法，正气虚的补之使实，邪气实的泻之使虚，痛苦虽不能随针而去，但病势是必然减轻了。阴经的邪气盛，阳经的正气虚，一定要先补阳经的正气，后泻阴经的邪气，从而调和它们的有余和不足。阴经的正气虚，阳经的邪气盛，一定要先补阴经的正气，后泻阳经的邪气，从而调和它们的有余和不足。</font><br /> <br /> 　　<font >【原文】三脉动于足大趾之间，必审其实虚，虚而泻之是谓重虚。重虚病益甚。凡刺此者，以指按之，脉动而实且疾者疾泻之，虚而徐者则补之。反此者，病益甚。其动也，阳明在上，厥阴在中，少阴在下。</font><br /> 　　<font >【翻译】足阳明胃经、足厥阴肝经、足少阴肾经三条经脉，都有动脉布于足大趾之间，针刺时要先审察它属于虚症还是属于实症。如果虚症误用了泻法，叫做重虚，虚而更虚，病就更严重了。大凡针刺这些病时，先用手指切按动脉，脉搏实而快的用泻法，脉搏虚而缓的用补法；反之，则病必加重。这三脉跳动的部位，足阳明经在足跗之上，足厥阴经在足跗之内，足少阴经在足跗之下。</font><br /> <br /> 　　<font >【原文】膺俞中，膺背俞中，背肩膊虚者，取之上。重舌、刺舌柱以铍针也。</font><br /> 　　<font >【翻译】取胸部腧穴，必中其胸。取背部腧穴，必中其背。肩博如有酸胀麻木的虚症，应取上肢经脉的腧穴。对于重舌的患者，应用铍针在舌柱(舌下大筋)上刺出恶血。</font><br /> <br /> 　　<font >【原文】手屈而不伸者，其病在筋，伸而不屈者，其病在骨，在骨守骨，在筋守筋。</font><br /> 　　<font >【翻译】手指弯曲而不能伸直的，其病在筋上；伸直了而不能弯曲的，其病在骨上。病在骨就治骨，病在筋就治筋。</font><br /> <br /> 　　<font >【原文】补须一方实深取之，稀按其痏，以极出其邪气。一方虚浅刺之，以养其脉`，疾按其痏，无使邪气得入。邪气来也紧而疾，谷气来也徐而和。脉实者，深刺以泄其气；脉虚者浅刺之，使精气无得出，以养其脉，独出其邪气。</font><br /> 　　<font >【翻译】补泻之法，在泻的时候要看哪一处的脉气实，针刺要深，出针后缓按针孔，以尽量泄出邪气；在补的时候要看哪一处的脉气虚，用浅刺法，以养其脉气，出针后急按针孔，不叫邪气侵入。邪气来时，针下会感到紧急；谷气来时，针下会感到徐和。脉气盛实的，当用深刺法，以泄其邪气；脉气虚弱的，当用浅刺法，使精气不致外泄，以养其经脉，而只是排出邪气。</font><br /> <br /> 　　<font >【原文】刺诸痛者，其脉皆实。故曰：从腰以上者，手太阴阳明皆主之；从腰以下者，足太阴阳明皆主之。</font><br /> 　　<font >【翻译】针刺各种疼痛的疾病，需深刺，其脉象都是实的。腰以上的病，都由手太阴肺经和手阳明大肠经主管；腰以下的病，都由足太阴脾经、足阳明胃经主管。</font><br /> <br /> 　　<font >【原文】病在上者下取之；病在下者高取之；病在头者取之足；病在腰者取之腘。病生于头者，头重；生于手者，臂重；生于足者，足重。治病者，先刺其病所从生者也。</font><br /> 　　<font >【翻译】病在上部的，可取下部的腧穴；病在下部的，可取上部的腧穴；病在头部的，可取足部的腧穴；病在腰部的，可取腘部的腧穴。病生于头部，必觉头重；病生于手部的，必觉臂重；病生于足部的，必觉足重，在治疗时，先要分析生病的原因，再行针刺。</font><br /> <br /> 　　<font >【原文】春气在毛，夏气在皮肤，秋气在分肉，冬气在筋骨。刺此病者，各以其时为齐。故刺肥人者，以秋冬之齐，刺瘦人者，以春夏之齐。</font><br /> 　　<font >【翻译】春天的邪气在毫毛处，夏天的邪气在皮肤处，秋天的邪气在分肉处，冬天的邪气在筋骨处，针刺这些病时，要根据时令的变化而酌情使用深浅补泄。刺肥胖的人，要用秋冬的标准深刺，刺瘦弱之人，要用春夏的标准浅刺。</font><br /> <br /> 　　<font >【原文】病痛者阴也，痛而以手按之不得者阴也，深刺之。病在上者阳也。病在下者，阴也。痒者阳也，浅刺之。病先起阴者，先治其阴而后治其阳；病先起阳者，先治其阳而后治其阴。</font><br /> 　　<font >【翻译】疼痛的病多属阴症，疼痛而用手按之不得其处的也属阴症，要用深刺法。病在上部或表层属阳，病在下部或深层属阴。发痒的病，仅在皮肤，属阳，当用浅刺法。病如先起于阴经，要先治疗阴经，然后再治疗阳经；病如先起于阳经，要先治疗阳经，然后再治疗阴经。</font><br /> <br /> 　　<font >【原文】刺热厥者，留针反为寒；刺寒厥者，留针反为热。刺热厥者，二阴一阳；所谓二阴者，二刺阴也，一阳者，一刺阳也。</font><br /> 　　<font >【翻译】针刺热厥的病，留针等针下觉寒而后去针；针刺寒厥的病，留针等针下觉热而后去针。针刺热厥，要补其阴经二次，泻其阳经一次；针刺寒厥，要补其阳经二次，泻其阴经一次。所谓“二阴”，是在阴经针刺二次；“二阳”是在阳经针刺二次。</font><br /> <br /> 　　<font >【原文】久病者，邪气入深。刺此病者，深内而久留之，间日而复刺之，必先调其左右，去其血脉，刺道毕矣。</font><br /> 　　<font >【翻译】久病的人，邪气侵入必深，针刺这类宿疾，要深刺并长时间留针，隔日再刺，还必须首先察明病邪在左在右的偏盛现象，去除血脉中的郁滞。针刺的原则大体就这些了。</font><br /> <br /> 　　<font >【原文】凡刺之法，必察具形气。形肉未脱，少气而脉又躁，躁厥者，必为缪刺之，散气可收，聚气可布。</font><br /> 　　<font >【翻译】大凡针刺之法，一定要先观察患者的形气。如果形肉未脱，气少脉躁，出现了躁而且快的脉象，就应当采用缪刺法，轻手浅刺其络脉，使耗散的精气可以收住，而聚集的邪气可以散去。</font><br /> <br /> 　　<font >【原文】深居静处，占神往来，闭户塞牖，魂魄不散，专意一神，精气之分，无闻人声，以收其精，必一其神，令志在针。浅而留之，微而浮之，以移其神，气至乃休。男内女外，坚拒勿出，谨守勿内，是谓得气。</font><br /> 　　<font >【翻译】在针刺之前，医生要深居静处，安定自己的精神，又要象闭户塞窗一样，意志专一，听不到旁人的声音，从而使精神内守，全心集中在针刺上。用针时，要浅刺留针或微捻提针，以转移病人的精神恐惧，直到针下得气而止。男子要浅刺候气于外，女子要深刺候气于内，坚拒正气不使外出，谨防邪气不使侵入，这叫做得气。</font><br /> <br /> 　　<font >【原文】凡刺之禁：新内勿刺，新刺勿内；已醉勿刷，已刺勿醉；新怒勿刺，已刺勿怒；新劳勿刺，已刺勿劳；已饱勿刺，已刺勿饱；已饥勿刺，已刺勿饥；已渴勿刺，已刺勿渴；大惊大恐，必定其气乃刺之。乘车来者，卧而休之，如食顷乃刺之。出行来者，坐而休之，如行千里顷乃刺之。凡此十二禁者，其脉乱气散，逆其营卫，经气不足，因而刺之，则阳病入于阴，阴病出为阳，则邪气复生。粗工勿察，是谓代身，形体淫佚，乃消脑髓，津液不化，脱其五味，是谓失气也。</font><br /> 　　<font >【翻译】关于针刺的禁忌：刚性交之后不可针刺，刚针刺之后不可性交；醉酒之后不可针刺，针刺之后不可醉酒；刚发过怒不可针刺，针刺之后不可发怒；刚劳累过后不可针刺，针刺之后不可劳累；刚吃饱饭不可针刺，针刺之后不可立刻吃得过饱；大渴之时不可针刺，针刺之后不可受渴；如果病人大惊大恐，一定要使其精神安定，方可针刺；坐车来的病人，要让他卧下休息一下，大约过一顿饭的工夫，才可针刺；步行来的病人，要让他坐着休息一下，大约过走十里地的工夫，才可针刺。凡是触犯这些禁忌的患者，一般脉象紊乱，正气耗散，营卫的运行不顺，经脉气血不足。如果就这样针刺，可能使阳经的病流入到内脏，阴经的病出于阳经，那样病邪就又要滋生了。一般的庸医不体察这些情况，这可说是损伤患者的身体，使患者形体感到酸痛无力，骨体耗损，津液不能运化，而丧失了由饮食五味所化生的精气，这叫做失气。</font><br /> <br /> 　　<font >【原文】太阳之脉，其终也。戴眼，反折，瘈瘲，其色白，绝皮乃绝汗，绝汗则终矣。</font><br /> 　　<font >【翻译】手足太阳经脉，在其将绝的时候，会出现眼睛上视不能转动，腰脊强直，角弓反张，手足抽搐，面色苍白，绝汗暴出，而绝汗一出就死了。</font><br /> <br /> 　　<font >【原文】少阳终者，耳聋，百节尽纵，目系绝，目系绝，一日半则死矣。其死也，色青白，乃死。</font><br /> 　　<font >【翻译】手足少阳经脉，在其将绝的时候，会出现耳聋，周身关节松缓无力，眼珠突瞪，入脑处的脉气断绝，一日半就会死的。临死之时，面色由青转白，然后就死了。</font><br /> <br /> 　　<font >【原文】阳明终者，口目动作喜惊、妄言、色黄；其上下之经盛而不行，则终矣。</font><br /> 　　<font >【翻译】手足阳明经脉，在其将绝的时候，会出现口眼颤动歪斜，多惊，妄言，面色发黄，如上下手足二经的动脉出现躁动，就要死了。</font><br /> <br /> 　　<font >【原文】少阴终者，面黑齿长而垢，腹胀闭塞，上下不通而终矣。</font><br /> 　　<font >【翻译】手足少阴经脉，在其将绝的时候，患者面色发黑，牙齿变长而且发生污垢，腹胀闭闷，上下气机不通，就要死了。</font><br /> <br /> 　　<font >【原文】厥阴终者，中热溢干，喜溺，心烦，甚则舌卷，卵上缩而终矣。</font><br /> 　　<font >【翻译】手足厥阴经脉，在其将绝的时候，患者胸中发热，咽喉发干，多小便，心中烦躁，甚至于舌卷及睾丸上缩的情况，然后就要死了。</font><br /> <br /> 　　<font >【原文】太阴终者，腹胀闭不得息，气噫，善呕，呕则逆，逆则面赤，不逆则上下不通，上下不通则面黑，皮毛憔而终矣。</font><br /> 　　<font >【翻译】手足太阴经脉，在其将绝的时候，腹部胀闭，呼吸不畅，多嗳气，多呕吐，呕吐时气上逆，气上逆就会面色发赤，如果气不上逆，就会上下不通，上下不通就会面现黑色，终至皮毛憔悴而死。</font>         <div class="chapter_Turnpage">          <div style="text-align:center;padding-bottom:10px;"></div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-10">
+            <strong>发表时间：2018/10/31 13:07:12
+            </strong>
+        </div>
+        <div class="col-lg-2">
+            <a class="btn btn-default" id="btnDing"><span class="glyphicon glyphicon-thumbs-up"></span>推荐</a>
+            <a class="btn btn-default" id="btnCai"><span class="glyphicon glyphicon-thumbs-down "></span>反对</a>
+        </div>
+    </div>
+    <hr />
+    <div class="row">
+        <div class="col-lg-12">
+            <h4>评论列表</h4>
+            <div class="">
+                <ol id="ulComments">
+                </ol>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <textarea class="form-control" placeholder="说两句吧..." id="txtComment"></textarea><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-1 col-lg-offset-11">
+            <input type="button" class="btn btn-default" value="评论" id="btnPostComment" />
+        </div>
+    </div>
+
+        
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E1B165C8" /></form>
+        
+        
+        <hr />
+        <footer>
+            <p>&copy; 本站所有信息均采集于互联网,如有侵权请联系：qctvip@vip.163.com</p>
+            <div class="hidden">
+            <script src="https://s19.cnzz.com/z_stat.php?id=1275095046&web_id=1275095046" type="text/javascript"></script>
+            </div>
+        </footer>
+    </div>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">用户登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="txtUserName" class="col-sm-2 col-md-5 control-label">用户名</label>
+                            <div class="col-sm-3">
+                                <input type="email" class="form-control" id="txtUserName" placeholder="用户名" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="txtPwd" class="col-sm-2 col-md-5 control-label">密码</label>
+                            <div class="col-sm-3">
+                                <input type="password" class="form-control" id="txtPwd" placeholder="密码" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10 col-md-offset-5">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" />
+                                        记住密码
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="text-left">
+                        <a href="/RegUser.aspx">注册</a>
+                        <a href="/FindPassword.aspx">忘记密码?</a>
+                    </div>
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Visual Studio Browser Link -->
+<script type="application/json" id="__browserLink_initializationData">
+    {"appName":"Unknown","requestId":"4eb996441dc44f0eae638216e088762c"}
+</script>
+<script type="text/javascript" src="http://localhost:3285/f03e4909866e4711a8dd495b7f39e2ba/browserLink" async="async"></script>
+<!-- End Browser Link -->
+
+</body>
+</html>

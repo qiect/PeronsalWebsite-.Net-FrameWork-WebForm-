@@ -1,0 +1,202 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Admin.master.cs" Inherits="PersonSite.Admin.Admin" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta charset="utf-8" />
+    <meta name="renderer" content="webkit|ie-comp|ie-stand" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+    <meta http-equiv="Cache-Control" content="no-siteapp" />
+    <link rel="stylesheet" type="text/css" href="/Admin/static/h-ui/css/H-ui.min.css" />
+    <link rel="stylesheet" type="text/css" href="/Admin/static/h-ui.admin/css/H-ui.admin.css" />
+    <link rel="stylesheet" type="text/css" href="/Admin/lib/Hui-iconfont/1.0.8/iconfont.css" />
+    <link rel="stylesheet" type="text/css" href="/Admin/static/h-ui.admin/skin/default/skin.css" id="skin" />
+    <link rel="stylesheet" type="text/css" href="/Admin/static/h-ui.admin/css/style.css" />
+    <title>后台管理系统</title>
+
+</head>
+
+<body>
+    <!--_header 作为公共模版分离出去-->
+    <header class="navbar-wrapper">
+        <div class="navbar navbar-fixed-top">
+            <div class="container-fluid cl">
+                <a class="logo navbar-logo f-l mr-10 hidden-xs" href="javascript:;">后台管理系统</a>
+                <a class="logo navbar-logo-m f-l mr-10 visible-xs" href="#">后台管理系统</a>
+                <span class="logo navbar-slogan f-l mr-10 hidden-xs">v1.0</span>
+                <a aria-hidden="false" class="nav-toggle Hui-iconfont visible-xs" href="javascript:;">&#xe667;</a>
+                <nav id="Hui-userbar" class="nav navbar-nav navbar-userbar hidden-xs">
+                    <ul class="cl">
+                        <li id="divLoginArea"><a href="javascript:;" onclick="modaldemo()">登录</a></li>
+                        <li id="divLoginOutArea" class="dropDown dropDown_hover">
+                            <a href="#" class="dropDown_A">欢迎您，<span id="spanUserName"></span><i class="Hui-iconfont">&#xe6d5;</i></a>
+                            <ul class="dropDown-menu menu radius box-shadow">
+                                <li><a href="/FindPassword.aspx">修改密码</a></li>
+                                <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                            </ul>
+                        </li>
+                        <li id="Hui-skin" class="dropDown right dropDown_hover"><a href="javascript:;" class="dropDown_A" title="换肤"><i class="Hui-iconfont" style="font-size: 18px">&#xe62a;</i></a>
+                            <ul class="dropDown-menu menu radius box-shadow">
+                                <li><a href="javascript:;" data-val="default" title="默认（黑色）">默认（黑色）</a></li>
+                                <li><a href="javascript:;" data-val="blue" title="蓝色">蓝色</a></li>
+                                <li><a href="javascript:;" data-val="green" title="绿色">绿色</a></li>
+                                <li><a href="javascript:;" data-val="red" title="红色">红色</a></li>
+                                <li><a href="javascript:;" data-val="yellow" title="黄色">黄色</a></li>
+                                <li><a href="javascript:;" data-val="orange" title="橙色">橙色</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">管理员登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <div class="form modal-form">
+                        <div class="row cl">
+                            <label class="form-label col-xs-4 col-sm-4 text-r">用户名：</label>
+                            <div class="formControls col-xs-8 col-sm-4">
+                                <input class="input-text" id="txtUserName" autocomplete="off" placeholder="请输入用户名" type="text" />
+                            </div>
+                        </div>
+                        <div class="row cl">
+                            <label class="form-label col-xs-4 col-sm-4 text-r">密码：</label>
+                            <div class="formControls col-xs-8 col-sm-4">
+                                <input class="input-text" id="txtPwd" autocomplete="off" placeholder="请输入密码" type="password" />
+                            </div>
+                            <div class="c-primary">
+                                <a class="" href="/RegUser.aspx">注册</a>
+                                <a href="/FindPassword.aspx">忘记密码?</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--/_header 作为公共模版分离出去-->
+    <!--_menu 作为公共模版分离出去-->
+    <aside class="Hui-aside">
+        <div class="menu_dropdown bk_2">
+            <dl id="menu-article">
+                <dt><i class="Hui-iconfont">&#xe616;</i>资讯管理<i class="Hui-iconfont menu_dropdown-arrow">&#xe6d5;</i></dt>
+                <dd>
+                    <ul>
+                        <li id="article-mgr"><a href="ArticleMgr.aspx" title="文章管理">文章管理</a></li>
+                        <li id="ad-mgr"><a href="AdMgr.aspx" title="广告管理">广告管理</a></li>
+                        <li id="mod-mgr"><a href="ModComments.aspx" title="评论审核">评论审核</a></li>
+                        <li id="filterwords-mgr"><a href="FilterWordsMgr.aspx" title="过滤词管理">过滤词管理</a></li>
+                        <li id="cha-mgr"><a href="ChannelMgr.aspx" title="频道管理">频道管理</a></li>
+                    </ul>
+                </dd>
+            </dl>
+            <dl id="menu-tool">
+                <dt><i class="Hui-iconfont">&#xe62e;</i>其他<i class="Hui-iconfont menu_dropdown-arrow">&#xe6d5;</i></dt>
+                <dd>
+                    <ul>
+                        <li id="memo-mgr1"><a href="#" title="常用技巧和日志">备忘录</a></li>
+                    </ul>
+                </dd>
+            </dl>
+        </div>
+    </aside>
+    <div class="dislpayArrow hidden-xs"><a class="pngfix" href="javascript:void(0);" onclick="displaynavbar(this)"></a></div>
+    <!--/_menu 作为公共模版分离出去-->
+
+    <section id="content" class="Hui-article-box">
+        <nav class="breadcrumb"><i class="Hui-iconfont">&#xe67f;</i> 首页 <span class="c-gray en">&gt;</span> 资讯管理 <span class="c-gray en">&gt;</span> 文章管理 <a class="btn btn-success radius r" style="line-height: 1.6em; margin-top: 3px" href="javascript:location.replace(location.href);" title="刷新"><i class="Hui-iconfont">&#xe68f;</i></a></nav>
+        <div class="Hui-article">
+            <form id="form1" runat="server">
+                <div class="cl pd-20">
+                    <asp:ContentPlaceHolder ID="avigation" runat="server">
+                    </asp:ContentPlaceHolder>
+                    <div class="mt-20">
+
+                        <asp:ContentPlaceHolder ID="main" runat="server">
+                        </asp:ContentPlaceHolder>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+    <!--_footer 作为公共模版分离出去-->
+    <script type="text/javascript" src="/Admin/lib/jquery/1.9.1/jquery.min.js"></script>
+    <script type="text/javascript" src="/Admin/lib/layer/2.4/layer.js"></script>
+    <script type="text/javascript" src="/Admin/static/h-ui/js/H-ui.js"></script>
+    <script type="text/javascript" src="/Admin/static/h-ui.admin/js/H-ui.admin.page.js"></script>
+    <script type="text/javascript" src="/Admin/lib/datatables/1.10.0/jquery.dataTables.min.js"></script>
+    <asp:ContentPlaceHolder ID="head" runat="server">
+    </asp:ContentPlaceHolder>
+    <!--/_footer /作为公共模版分离出去-->
+    <script type="text/javascript">
+
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                    $("#content").addClass("hidden");
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#content").removeClass("hidden");
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        $(function () {
+            //$("#btnShowLoginDlg").click(function () {
+            //    ShowLoginDiv();
+            //});
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+    </script>
+</body>
+</html>

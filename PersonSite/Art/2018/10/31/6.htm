@@ -1,0 +1,373 @@
+﻿
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+	红领巾社区
+</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!--开启响应式布局-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="description" /><meta name="author" /><link rel="icon" href="/images/logo.jpg" /><link href="/js/bootstrap/css/bootstrap.css" rel="stylesheet" />
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/js/common.js"></script>
+    <style>
+        /*
+        * Style tweaks
+        * --------------------------------------------------
+        */
+        html,
+        body {
+            overflow-x: hidden; /* Prevent scroll on narrow devices */
+            /*font-family: KaiTi;*/
+        }
+
+        body {
+            padding-top: 70px;
+        }
+
+        footer {
+            padding: 30px 0;
+        }
+    </style>
+    <script type="text/javascript">
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        var loginFinish = function (data) {
+            if (data == "ok") {
+                //alert("成功");
+                $("#divLogin").dialog("close"); //登录成功关闭窗口
+                checkLogin();//登录成功，刷新登录区域的显示
+            }
+            else {
+                alert("用户名密码错误");
+            }
+        };
+        $(function () {
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+
+        $(function () {
+            //绑定菜单列表
+            $.post("/ajax/GetChannel.ashx", { "action": "parent" }, function (data) {
+                var chas = $.parseJSON(data);
+                for (var i = 0; i < chas.length; i++) {
+                    var cha = chas[i];
+                    $('<li><a href="/Art/ViewChannel.aspx?id=' + cha.Id + '">' + cha.Name + '</a></li>').appendTo("#header-menu");
+                }
+            })
+        })
+    </script>
+    
+    
+    
+    
+    <script src="/js/common.js"></script>
+    <script type="text/javascript">
+        //提交评论完成后的处理
+        var postFinish = function (data) {
+            //var oEditor = CKEDITOR.instances.txtComment;
+            if (data == "ok") {
+                //把评论的内容添加到界面上
+                $("<li>"+$("#txtComment").val()+"</li>").appendTo("#ulComments");
+                //$("<li>" + oEditor.getData() + "</li>").appendTo("#ulComments");
+
+
+            }
+            else if (data == "mod") {
+                alert("等待审核");
+            }
+            else if (data == "banned") {
+                alert("您的评论内容含有禁用词汇，请注意文明用语！");
+            }
+            else {
+                alert("服务器返回错误:" + data);
+            }
+            //清空CKEditor
+            //oEditor.setData("");//设置txtComment的内容也不能影响CKEditor
+            $("#txtComment").val("");//评论提交成功后清除文本框
+        };
+        $(function () {
+            //启动的时候通过ajax加载评论
+            $.post("/ajax/GetComments.ashx", { "articleId": "189" },
+            function (data) {
+                var comments = $.parseJSON(data);//和eval一样是把json字符串转换为对象
+                for (var i = 0; i < comments.length; i++) {
+                    //把每条评论添加到ulComments上
+                    var comment = comments[i];
+                    $("<li>" + ubbToHtml(comment.Msg) + "</li>").appendTo("#ulComments");
+                }
+            });
+            //todo:做静态页的时候思考为什么通过ajax加载评论，为什么有的网站在另外一个页面显示评论
+            $("#btnPostComment").click(function () {
+                var msg = $("#txtComment").val();
+                //判断是否为空
+                if (msg == null || msg == "" || msg == undefined) {
+                    alert("请输入评论内容");
+                    return;
+                }
+                //CKEditor是把原先的textarea替换（replace）调，然后画自己的内容，所以读取textarea的value并不能得到CKEditor当前编辑的内容
+                //var oEditor = CKEDITOR.instances.txtComment;
+                //var msg = oEditor.getData();
+                //通过ajax提交评论
+                $.post("/ajax/PostComment.ashx",
+                    { "articleId": "189", "msg": msg },
+                    postFinish);
+            });
+        });
+
+        //    $(function () {
+        //        CKEDITOR.replace('txtComment',
+        //{
+        //    extraPlugins: 'bbcode',
+        //    removePlugins: 'bidi,button,dialogadvtab,div,filebrowser,flash,format,forms,horizontalrule,iframe,indent,justify,liststyle,pagebreak,showborders,stylescombo,table,tabletools,templates',
+        //    toolbar:
+        //    [
+        //        ['Source', '-', 'Save', 'NewPage', '-', 'Undo', 'Redo'],
+        //        ['Find', 'Replace', '-', 'SelectAll', 'RemoveFormat'],
+        //        ['Link', 'Unlink', 'Image'],
+        //        '/',
+        //        ['FontSize', 'Bold', 'Italic', 'Underline'],
+        //        ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+        //        ['TextColor', '-', 'Smiley', 'SpecialChar', '-', 'Maximize']
+        //    ],
+        //    smiley_images:
+        //    [
+        //        'regular_smile.gif', 'sad_smile.gif', 'wink_smile.gif', 'teeth_smile.gif', 'tounge_smile.gif',
+        //        'embaressed_smile.gif', 'omg_smile.gif', 'whatchutalkingabout_smile.gif', 'angel_smile.gif', 'shades_smile.gif',
+        //        'cry_smile.gif', 'kiss.gif'
+        //    ],
+        //    smiley_descriptions:
+        //    [
+        //        'smiley', 'sad', 'wink', 'laugh', 'cheeky', 'blush', 'surprise',
+        //        'indecision', 'angel', 'cool', 'crying', 'kiss'
+        //    ]
+        //});
+        //    });
+    </script>
+    <script type="text/javascript">
+        var rateFinish = function (data) {
+            if (data == "duplicate") {
+                alert("同一段视频24小时之内只能打分一次");
+            }
+            else {
+                alert("打分成功");
+            }
+        }
+        var imgStyle = function () {
+            $("img").addClass("img-responsive");
+        }
+
+        $(function () {
+            imgStyle();
+            $("#btnDing").button({
+                icons: { primary: 'ui-icon-check' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "189", "action": 1 }, rateFinish);
+            });
+            $("#btnCai").button({
+                icons: { primary: 'ui-icon-closethick' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "189", "action": -1 }, rateFinish);
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/Index.aspx">红领巾社区</a>
+            </div>
+            <div id="navbar" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav" id="header-menu">
+                    <li class="active"><a href="/Index.aspx">首页</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li id="divLoginArea">
+                        <a href="javascript:;" onclick="modaldemo()">登录</a>
+                    </li>
+                    <li id="divLoginOutArea" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">欢迎您，<span id="spanUserName"></span><span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/FindPassword.aspx">修改密码</a></li>
+                            <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+            </div>
+
+            <!-- /.nav-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- /.navbar -->
+    <div class="container">
+        <form method="post" action="./ViewArticle.aspx?id=189" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTIwNzQ0MjkzMjhkZNbbeL38Ox0VsgdXW+ie5WCZQJ22fxZlT9COXWbfTw20" />
+
+            
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="text-primary">
+                灵枢02 本输-黄帝内经白话文灵枢<br />
+            </h4>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div id="htmlContent" class="contentbox">      <font face="黑体"><font size="5"><font ><strong>1灵枢本输原文和白话文翻译:</strong></font></font></font><br /> 　　<font >【原文】黄帝问于歧伯曰：凡刺之道，必通十二经络之所终始，络脉之所别处，五俞之所留，六腑之所与合，四时之所出入，五脏之所溜处，阔数之度，浅深之状，高下所至。愿闻其解。</font><br /> 　　<font >【翻译】黄帝向岐伯问道；大凡针刺的方法，必须先通十二经络的起点和终点，络脉别出之处，井、荥、输、经、合腧穴留止的部位，脏腑相合的关系，以及四季气候影响人体经气出入的变化，五脏之气的流行灌注，还有经脉、络脉、孙脉的宽窄程度、浅深情况，上至于头，下至于足的联系。我想听听有关这些问题的讲解。</font><br /> <br /> 　　<font >【原文】歧伯曰：请言其次也。</font><br /> 　　<font >【翻译】岐伯说：请让我按次序讲解一下吧。</font><br /> <br /> 　　<font >【原文】肺出于少商，少商者，手大指端内侧也，为井木；溜于鱼际，鱼际者，手鱼也，为荥；注于太渊，太渊鱼后一寸陷者中也，为俞；行于经渠，经渠，寸口中也，动而不居为经；入于尺泽，尺泽，肘中之动脉也，为合。手太阴经也。</font><br /> 　　<font >【翻译】肺经的脉气出于少商穴，少商穴位于大指端的内侧，称之为井木；脉气由此流向鱼际穴，鱼际在手鱼之后，称之为荥；脉气由此注入太渊穴，太渊位于鱼后一寸陷者之中，称之为输；脉气由此通过经渠穴，经渠在寸口之陷中，动而不止，称之为经；脉气由此入归于尺泽穴，尺泽即肘中的动脉，称之为合。这就是手太阴肺经所属的五腧穴。</font><br /> <br /> 　　<font >【原文】心出于中冲，中冲，手中指之端也，为井木；溜于劳宫，劳宫，掌中中指本节之内间也，为荥；注于大陵，大陵，掌后两骨之间，方下者也，为俞；行于间使，间使之道，两筋之间，三寸之中也，有过则至，无过则止，为经；入于曲泽，曲泽，肘内廉下陷之中也，屈而得之，为合。手少阴也。</font><br /> 　　<font >【翻译】心经的脉气出于中冲，中冲位于手中指之端，称之为井木；脉气由此流入劳宫穴，劳宫在掌中央中指本节的内间，称之为荥；脉气由此注入大陵穴，大陵在掌后两骨之间陷中，称之为腧；脉气由此通过间使穴，间使在掌后三寸两筋之间陷中，如果此脉有病就会有反应，无病脉气就很平静，称之为经；脉气由此入归于曲泽穴，曲泽在肘内侧陷中，屈肘即可得穴，称之为合。这是手少阴心经所属的五腧穴。</font><br /> <br /> 　　<font >【原文】肝出于大敦，大敦者，足大趾之端，及三毛之中也，为井木；溜于行间，行间，足大趾间也，为荥；注于太冲，太冲，行间上二寸，陷者之中也，为俞；行于中封，中封，内踝之前一寸半，陷者之中，使逆则宛，使和则通，摇足而得之，为经；入于曲泉，曲泉，辅骨之下，大筋之上也，屈膝而得之，为合。足厥阴也。</font><br /> 　　<font >【翻译】肝经的脉气出于大敦穴，大敦位于足大指的外侧和三毛中间，称之为井木；脉气由此流于行间穴，行间在足大指次指间动脉陷中，称之为荥；脉气由此注入太冲穴，太冲在行间穴上二寸陷中，称之为腧；脉气由此通过中封穴，中封在内踝之前一寸陷中，该穴针刺时，逆使脉气就会阻塞，和则脉气通畅，伸足即可得穴，称之为经；脉气由此入归于曲泉穴，曲泉在膝内辅骨之下，大筋上小筋下，屈膝可得穴，称之为合。这是足厥阴肝经所属的五腧穴。</font><br /> <br /> 　　<font >【原文】脾出于隐白，隐白者，足大趾之端内侧也，为井木；溜于大都，大都，本节之后下，陷者之中也，为荥；注于太白，太白，腕骨之下也，为俞；行于商丘，丘商，内踝之下，陷者之中也，为经；入于阴之陵泉，阴之陵泉，辅骨之下，陷者之中也，伸而得之，为合。足太阴也。</font><br /> 　　<font >【翻译】脾经的脉气出于隐白穴，隐白位于足大指端的内侧，称之为井木；脉气由此流到大都穴，大都在足大指本节后内侧陷中，称之为荥；脉气由此注入太白穴，太白在足内侧核骨之下，称之为腧；脉气由此通过商丘穴，商丘在足内踝下微前陷中，称之为经；脉气由此入归于阴陵泉，阴陵泉在膝内侧辅骨下陷中，伸足即可得穴，称之为合。这是足太阴脾经所属的五腧穴。</font><br /> <br /> 　　<font >【原文】肾出于涌泉，涌泉者足心也，为井木；溜于然谷，然谷，然骨之下者也，为荥；注于太溪，太溪，内踝之后，跟骨之上，陷中者也，为俞；行于复溜，复溜，上内踝二寸，动而不休，为经；入于阴谷，阴谷，辅骨之后，大筋之下，小筋之上也，按之应手，屈膝而得之，为合。足少阴经也。</font><br /> 　　<font >【翻译】肾经的脉气出于涌泉穴，涌泉位于足心，称之为井木；脉气由此流于然谷，然谷在足内踝前大骨陷中，称之为荥；脉气由此注入太溪穴，太溪在足内踝后，跟骨之上陷中，称之为腧；脉气由此行于复留穴，复留在足内踝上二寸，有动脉跳动不止，称之为经；脉气由此入归于阴谷穴，阴谷在膝内侧辅骨之后大筋之上，小筋之下，按之动脉应手，屈膝即可在腘横纹内侧端二筋之间得穴，称之为合。这是足少阴肾经所属的五腧穴。</font><br /> <br /> 　　<font >【原文】膀胱出于至阴，至阴者，足小趾之端也，为井金；溜于通谷，通谷，本节之前外侧也，为荥；注于束骨，束骨，本节之后，陷者中也，为俞；过于京骨，京骨，足外侧大骨之下，为原；行于昆仑，昆仑，在外踝之后，跟骨之上，为经；入于委中，委中，腘中央，为合，委而取之。足太阳也。</font><br /> 　　<font >【翻译】膀胱的脉气出于至阴穴，至阴在足小指的外侧，称之为井金；脉气由此流于通谷穴，通谷在足小指外侧本节之前陷中，称之为荥；脉气由此注入束骨穴，束骨在足小指外侧本节后陷中，称之为腧；脉气由于通过京骨穴，京骨在足外侧大骨下赤白肉际陷中，称之为原；脉气由此行于昆仑穴，昆仑在足外踝之后、跟骨之上的陷中，称之为经；脉气由此入归于委中穴，委中在膝腘后横纹中央，可屈而得穴，称之为合。这是足太阳膀胱经所属的五腧穴和原穴。</font><br /> <br /> 　　<font >【原文】胆出于窍阴，窍阴者，足小趾次趾之端也，为井金；溜于侠溪，侠溪，足小趾次趾之间也，为荥；注于临泣，上行一寸半，陷者中也，为俞；过于丘墟，丘墟，外踝之前下陷者中也，为原。行于阳辅，阳辅，外踝之上，辅骨之前，及绝骨之端也，为经；入于阳之陵泉，阳之陵泉，在膝外，陷者中也，为合，伸而得之。足少阳也。</font><br /> 　　<font >【翻译】胆经的脉气出于窍阴穴，窍阴在足第四指尖端的外侧，称之为井金，脉气由此流于侠溪穴，侠溪在足小指次指歧骨间，称之为荥，脉气由此贯注于临泣，临泣在侠溪上行一寸半陷凹处，称之为腧，脉气由此过于丘墟穴，丘罐在足外踝前面陷中，称之为原；脉气由此行于阳辅，阳辅在足外踝上四寸绝骨之端，称之为经；脉气由此入归于阳陵泉穴，阳陵泉在膝下一寸外辅骨的陷中处，伸足即可得穴。这是足少阳胆经所属的五腧穴和原穴。</font><br /> <br /> 　　<font >【原文】胃出于厉兑，厉兑者，足大趾内次趾之端也，为井金；溜于内庭，内庭，次趾外间也，为荥；注于陷谷，陷谷者，上中指内间，上行二寸，陷者中也，为俞；过于冲阳，足跗上五寸，陷者中也，为原，摇足而得之；行于解溪，解溪，上冲阳一寸半，陷者中也，为经；入于下陵，下陵，膝下三寸，胻骨外三里也，为合；复下三里三寸为巨虚上廉，复下上廉三寸，为巨虚下廉也；大肠属上，小肠属下，足阳明胃脉也。大肠小肠，皆属于胃，是足阳明也。</font><br /> 　　<font >【翻译】胃经的脉气出于厉兑穴，厉兑在足第二指尖端的外侧，称之为井金；脉气由此流于内庭，内庭在足第二指的外间本节陷中，称之为荥；脉气由此注入陷谷穴，陷谷在中指内间内庭上二寸陷凹中，称之为腧；脉气由此过于冲阳穴，冲阳在脚面上五寸骨间动脉应手处，摇足取穴，称之为原；脉气由此行于解溪穴，解溪在冲阳上一寸半脚面关节上陷中，称之为经，脉气由此入归于下陵穴，下陵即膝下三寸胫骨外缘的三里穴，称之为合；从三里下行三寸，是巨虚上廉，再下行三寸，是巨虚下廉，大肠属于上廉，小肠属于下廉，都是和阳明胃脉相关的，同属于胃脉。以上是足阳明胃经所属的五腧穴和原穴。</font><br /> <br /> 　　<font >【原文】三焦者，上合手少阳，出于关冲，关冲者，手小指次指之端也，为井金；溜于液门，液门，小指次指之间也，为荥；注于中渚，中渚，本节之后，陷者中也，为俞；过于阳池，阳池，在腕上，陷者之中也，为原；行于支沟，支沟，上腕三寸，两骨之间，陷者中也，为经；入于天井，天井，在肘外大骨之上，陷者中也，为合，屈肘乃得之；三焦下腧，在于足大趾之前，少阳之后，出于腘中外廉，名曰委阳，是太阳络也，手少阳经也。三焦者，足少阳太阴之所将，太阳之别也，上踝五寸，别入贯□肠，出于委阳，并太阳之正，入络膀胱，约下焦，实则闭癃，虚则遗溺，遗溺则补之，闭癃则泻之。</font><br /> 　　<font >【翻译】三焦的脉气运行，上与手少阳经相合，出于关冲穴；关冲在小指侧无名指之端，称之为井金；脉气由此流于液门，液门在小指与无名指之间，称之为荥；脉气由此注入中渚，中渚在小指与无名指本节后两骨间陷中，称之为腧；脉气过于阳池，阳池在手腕上横纹陷中，称之为原；脉气由此行于支沟穴，支沟在腕上三寸两骨之间陷中，称之为经，脉气由此入归于天井穴，天井在肘外大骨之上，屈肘可以得穴，称之为合。三焦的脉气，另通于足部的下腧，在足太阳经之前，少阳经之后，上行出于腘中外侧，叫做委阳穴。委阳是足太阳经脉别行之络。以上腧穴是手少阳经脉气所发。三焦的脉气，与足少阳、少阴两经相互联系，是足太阳经的别络，它的脉气，由踝上五寸入贯于腿肚，出于委阳穴，并足太阳经的正脉，入络膀胱，以约束下焦。三焦的实症，会出现小便不通畅的闭癃病；三焦的虚症，会发生小便失禁的遗溺病。治疗之时，遗溺病当用补法，闭癃病当用泻法。</font><br /> <br /> 　　<font >【原文】手太阳小肠者，上合手太阳，出于少泽，小指之端也，为井金；溜于前谷，前谷，在手外廉本节前，陷者中也，为荥；注于后溪，后溪者，在手外侧本节之后也，为俞；过于腕骨，腕骨，在手外侧腕骨之前，为原；行于阳谷，阳谷，在锐骨之下，陷者中也，为经；入于小海，小海，在肘内大骨之外，去端半寸，陷者中也，伸臂而得之，为合。手太阳经也。</font><br /> 　　<font >【翻译】小肠的脉气运行，上合于手太阳经，出于少泽穴，少泽在手小指尖端的外侧，称之为井金；脉气由此流于前谷穴，前谷在手外侧小指本节前陷中，称之为荥；脉气由此注于后溪穴，后溪在手外侧小指本节后陷中，称之为腧；脉气由此过于腕骨穴，腕骨穴在手外侧腕骨之前陷中，称之为原；脉气由此行于阳谷穴，阳谷在手外侧腕中，锐骨下陷中，称之为经；脉气由此入归于小海穴，小海在肘外侧大骨的外缘陷中，离肘尖半寸处，伸臂屈肘向头取之，称之为合。这就是手太阳小肠经所属的五腧穴和原穴的情况。</font><br /> <br /> 　　<font >【原文】大肠上合手阳明，出于商阳，商阳，大指次指之端也，为井金；溜于本节之前，二间，为荥；注于本节之后，三间，为俞；过于合谷，合谷，在大指歧骨之间，为原；行于阳溪，阳溪，在两筋间陷者中也，为经；入于曲池，在肘外辅骨，陷者中也，屈臂而得之，为合。手阳明也。</font><br /> 　　<font >【翻译】大肠的脉气运行，上合于手阳明经，脉气出于商阳穴，商阳在手大指食指尖端的内侧，称之为井金；脉气由此流于食指内侧本节前的二间穴，称之为荥；脉气由此注于食指本节后面陷中的三间穴，称之为腧；脉气由此过于合谷穴，合谷在手大指和食指的歧骨中间，称之为原；脉气由此行于阳溪穴，阳溪在手腕上两筋中间的陷凹中，称之为经；脉气由此入归于曲池穴，曲池在肘外辅骨横纹头陷中，屈肘横肱取之，称之为合。这就是手阳明大肠经所属的五腧穴和原穴。</font><br /> <br /> 　　<font >【原文】是谓五脏六腑之俞，五五二十五俞，六六三十六俞也。六腑皆出足之三阳，上合于手者也。</font><br /> 　　<font >【翻译】以上所说的是五脏六腑的腧穴，五脏各有井、荥、输、经、合五个腧穴，五五共二十五个腧穴；六腑各多一个原穴，六六共三十六个腧穴。六腑的脉气都出于足太阳、足阳明、足少阳，上与手之三阳经相合。</font><br /> <br /> 　　<font >【原文】缺盆之中，任脉也，名曰天突。一次任脉侧之动脉，足阳明也，名曰人迎；二次脉，手阳明也，名曰扶突；三次脉，手太阳也，名曰天窗；四次脉，足少阳也，名曰天容；五次脉，手少阳也，名曰天牖；六次脉，足太阳也，名曰天柱；七次脉，颈中央之脉，督脉也，名曰风府。腋内动脉手太阴也，名曰天府。腋下三寸，手心主也，名曰天池。</font><br /> 　　<font >【翻译】在左右两缺盆的中间是任脉的天突穴。次于第一行，而近任脉之侧的动脉应手处，是足阳明经的人迎穴。次于第二行，属于手阳明经的叫做扶突穴。次于第三行，是属于手太阳经的天窗穴。次于第四行，是属于足少阳经的天容穴。决于第五行，是属于手少阳经的天牖穴。次于第六行，是属于足太阳经的天柱穴。次于第七行，居于项之中央，属于督脉，叫做风府。腋下动脉，是属于手太阴的天府穴。腋下三寸，是属于手心主的天池穴。</font><br /> <br /> 　　<font >【原文】刺上关者，呿不能欠。刺下关者，欠不能呿。刺犊鼻者，屈不能伸。刺两关者，伸不能屈。</font><br /> 　　<font >【翻译】针刺上关穴，要张口而不能合口；针刺下关穴，要合口而不能张口。针刺犊鼻穴，要屈足而不能伸足；针刺内关、外关，要伸手而不能弯屈。</font><br /> <br /> 　　<font >【原文】足阳明，侠喉之动脉也，其俞在膺中。手阳明，次在其俞外，不至曲颊一寸。手太阳，当曲颊。足少阳，在耳下曲颊之后。手少阳出耳后上，加完骨之上。足太阳，侠项，大筋之中，发际。</font><br /> 　　<font >【翻译】足阳明经的人迎穴位于挟结喉两旁的动脉应手处，脉气下行于胸膺。手阳明经的扶突穴，在足阳明经动脉人迎穴之外，不到曲颊，离曲颊一寸之处。手太阳经的天窗穴，则正当曲颊之下，扶突后一寸。足少阳经的天冲穴，在曲颊之后，耳朵之下。手少阳经的天牖穴在耳后，其上有足少阳胆经的完骨穴。足太阳经的天柱穴，挟项后在大筋外侧陷中的发际处。</font><br /> <br /> 　　<font >【原文】阴尺动脉，在五里，五俞之禁也。</font><br /> 　　<font >【翻译】手太阴尺泽穴上三寸有动脉之处，是手阳明经的五里穴，它是经隧之要害，刺之则脏气竭绝，所以这里是一个禁针穴位。</font><br /> <br /> 　　<font >【原文】肺合大肠，大肠者，传道之腑。心合小肠，小肠者，受盛之腑。肝合胆，胆者中精之腑。脾合胃，胃者五谷之腑。肾合膀胱，膀胱者津液之腑也。少阳属肾，肾上连肺，故将两脏。三焦者中渎之腑也，水道出焉，属膀胱，是孤之腑也，是六腑之所与合者。</font><br /> 　　<font >【翻译】肺和大肠相配合，大肠是转送糟粕之腑。心和小肠相配合，小肠是受盛食物的器官。肝和胆相配合，胆是清净之腑。脾和胃相配合，胃是受纳水谷的器官。肾和膀胱相配合，膀胱是水液所聚之腑。少阴隶属于肾，它的经脉上与肺连，所以肾经之脉气行于膀胱和肺两脏。三焦是中渎之腑，可疏调水道，下通膀胱，无脏与之匹配，是一个孤独之腑。以上是六腑与五脏配合的关系。</font><br /> <br /> 　　<font >【原文】春取络脉，诸荥，大经，分肉之间，甚者深取之，间者浅取之。夏取诸俞，孙络，肌肉，皮肤之上。秋取诸合，余如春法。冬取诸井，诸俞之分，欲深而留之，此四时之序，气之所处，病之所舍，脏之所宜。转筋者，立而取之，可令遂已。痿厥者，张而刺之，可令立快也。</font><br /> 　　<font >【翻译】春天针刺时，应取浅表部位的络脉和各经荥穴以及大筋和肌肉的间隙，比较严重的病要深刺，轻的要浅刺。夏天针刺时，要取十二经的腧穴以及肌肉、皮肤之上的浅表部位。秋天针刺时，应取十二经的合穴，深刺或浅刺与春天针刺的方法一样。冬天针刺时，应取十二经的井穴和脏腑的腧穴，要深刺并且留针。这是四时气候的暖热凉寒的次序，脉气所聚的处所，病疾发生的部位，针刺最为适宜的地方。如果遇到转筋的病症，令患者站立稳定，刺其当取的腧穴，就可使筋伸缩自如。如果遇到四肢偏废的痿厥病人，令患者仰卧，四肢伸开，进行针刺，就可使气血通畅。</font>         <div class="chapter_Turnpage">          <div style="text-align:center;padding-bottom:10px;"></div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-10">
+            <strong>发表时间：2018/10/31 13:07:01
+            </strong>
+        </div>
+        <div class="col-lg-2">
+            <a class="btn btn-default" id="btnDing"><span class="glyphicon glyphicon-thumbs-up"></span>推荐</a>
+            <a class="btn btn-default" id="btnCai"><span class="glyphicon glyphicon-thumbs-down "></span>反对</a>
+        </div>
+    </div>
+    <hr />
+    <div class="row">
+        <div class="col-lg-12">
+            <h4>评论列表</h4>
+            <div class="">
+                <ol id="ulComments">
+                </ol>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <textarea class="form-control" placeholder="说两句吧..." id="txtComment"></textarea><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-1 col-lg-offset-11">
+            <input type="button" class="btn btn-default" value="评论" id="btnPostComment" />
+        </div>
+    </div>
+
+        
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E1B165C8" /></form>
+        
+        
+        <hr />
+        <footer>
+            <p>&copy; 本站所有信息均采集于互联网,如有侵权请联系：qctvip@vip.163.com</p>
+            <div class="hidden">
+            <script src="https://s19.cnzz.com/z_stat.php?id=1275095046&web_id=1275095046" type="text/javascript"></script>
+            </div>
+        </footer>
+    </div>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">用户登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="txtUserName" class="col-sm-2 col-md-5 control-label">用户名</label>
+                            <div class="col-sm-3">
+                                <input type="email" class="form-control" id="txtUserName" placeholder="用户名" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="txtPwd" class="col-sm-2 col-md-5 control-label">密码</label>
+                            <div class="col-sm-3">
+                                <input type="password" class="form-control" id="txtPwd" placeholder="密码" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10 col-md-offset-5">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" />
+                                        记住密码
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="text-left">
+                        <a href="/RegUser.aspx">注册</a>
+                        <a href="/FindPassword.aspx">忘记密码?</a>
+                    </div>
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Visual Studio Browser Link -->
+<script type="application/json" id="__browserLink_initializationData">
+    {"appName":"Unknown","requestId":"dab9b4618c8440359d14d77b7108e6f1"}
+</script>
+<script type="text/javascript" src="http://localhost:3285/f03e4909866e4711a8dd495b7f39e2ba/browserLink" async="async"></script>
+<!-- End Browser Link -->
+
+</body>
+</html>

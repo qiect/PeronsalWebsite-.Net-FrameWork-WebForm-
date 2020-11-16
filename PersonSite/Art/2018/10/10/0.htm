@@ -1,0 +1,459 @@
+﻿
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+	红领巾社区
+</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!--开启响应式布局-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="description" /><meta name="author" /><link rel="icon" href="/images/logo.jpg" /><link href="/js/bootstrap/css/bootstrap.css" rel="stylesheet" />
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/js/common.js"></script>
+    <style>
+        /*
+        * Style tweaks
+        * --------------------------------------------------
+        */
+        html,
+        body {
+            overflow-x: hidden; /* Prevent scroll on narrow devices */
+            /*font-family: KaiTi;*/
+        }
+
+        body {
+            padding-top: 70px;
+        }
+
+        footer {
+            padding: 30px 0;
+        }
+    </style>
+    <script type="text/javascript">
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        var loginFinish = function (data) {
+            if (data == "ok") {
+                //alert("成功");
+                $("#divLogin").dialog("close"); //登录成功关闭窗口
+                checkLogin();//登录成功，刷新登录区域的显示
+            }
+            else {
+                alert("用户名密码错误");
+            }
+        };
+        $(function () {
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+
+        $(function () {
+            //绑定菜单列表
+            $.post("/ajax/GetChannel.ashx", { "action": "parent" }, function (data) {
+                var chas = $.parseJSON(data);
+                for (var i = 0; i < chas.length; i++) {
+                    var cha = chas[i];
+                    $('<li><a href="/Art/ViewChannel.aspx?id=' + cha.Id + '">' + cha.Name + '</a></li>').appendTo("#header-menu");
+                }
+            })
+        })
+    </script>
+    
+    
+    
+    
+    <script src="/js/common.js"></script>
+    <script type="text/javascript">
+        //提交评论完成后的处理
+        var postFinish = function (data) {
+            //var oEditor = CKEDITOR.instances.txtComment;
+            if (data == "ok") {
+                //把评论的内容添加到界面上
+                $("<li>"+$("#txtComment").val()+"</li>").appendTo("#ulComments");
+                //$("<li>" + oEditor.getData() + "</li>").appendTo("#ulComments");
+
+
+            }
+            else if (data == "mod") {
+                alert("等待审核");
+            }
+            else if (data == "banned") {
+                alert("您的评论内容含有禁用词汇，请注意文明用语！");
+            }
+            else {
+                alert("服务器返回错误:" + data);
+            }
+            //清空CKEditor
+            //oEditor.setData("");//设置txtComment的内容也不能影响CKEditor
+            $("#txtComment").val("");//评论提交成功后清除文本框
+        };
+        $(function () {
+            //启动的时候通过ajax加载评论
+            $.post("/ajax/GetComments.ashx", { "articleId": "20" },
+            function (data) {
+                var comments = $.parseJSON(data);//和eval一样是把json字符串转换为对象
+                for (var i = 0; i < comments.length; i++) {
+                    //把每条评论添加到ulComments上
+                    var comment = comments[i];
+                    $("<li>" + ubbToHtml(comment.Msg) + "</li>").appendTo("#ulComments");
+                }
+            });
+            //todo:做静态页的时候思考为什么通过ajax加载评论，为什么有的网站在另外一个页面显示评论
+            $("#btnPostComment").click(function () {
+                var msg = $("#txtComment").val();
+                //判断是否为空
+                if (msg == null || msg == "" || msg == undefined) {
+                    alert("请输入评论内容");
+                    return;
+                }
+                //CKEditor是把原先的textarea替换（replace）调，然后画自己的内容，所以读取textarea的value并不能得到CKEditor当前编辑的内容
+                //var oEditor = CKEDITOR.instances.txtComment;
+                //var msg = oEditor.getData();
+                //通过ajax提交评论
+                $.post("/ajax/PostComment.ashx",
+                    { "articleId": "20", "msg": msg },
+                    postFinish);
+            });
+        });
+
+        //    $(function () {
+        //        CKEDITOR.replace('txtComment',
+        //{
+        //    extraPlugins: 'bbcode',
+        //    removePlugins: 'bidi,button,dialogadvtab,div,filebrowser,flash,format,forms,horizontalrule,iframe,indent,justify,liststyle,pagebreak,showborders,stylescombo,table,tabletools,templates',
+        //    toolbar:
+        //    [
+        //        ['Source', '-', 'Save', 'NewPage', '-', 'Undo', 'Redo'],
+        //        ['Find', 'Replace', '-', 'SelectAll', 'RemoveFormat'],
+        //        ['Link', 'Unlink', 'Image'],
+        //        '/',
+        //        ['FontSize', 'Bold', 'Italic', 'Underline'],
+        //        ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+        //        ['TextColor', '-', 'Smiley', 'SpecialChar', '-', 'Maximize']
+        //    ],
+        //    smiley_images:
+        //    [
+        //        'regular_smile.gif', 'sad_smile.gif', 'wink_smile.gif', 'teeth_smile.gif', 'tounge_smile.gif',
+        //        'embaressed_smile.gif', 'omg_smile.gif', 'whatchutalkingabout_smile.gif', 'angel_smile.gif', 'shades_smile.gif',
+        //        'cry_smile.gif', 'kiss.gif'
+        //    ],
+        //    smiley_descriptions:
+        //    [
+        //        'smiley', 'sad', 'wink', 'laugh', 'cheeky', 'blush', 'surprise',
+        //        'indecision', 'angel', 'cool', 'crying', 'kiss'
+        //    ]
+        //});
+        //    });
+    </script>
+    <script type="text/javascript">
+        var rateFinish = function (data) {
+            if (data == "duplicate") {
+                alert("同一段视频24小时之内只能打分一次");
+            }
+            else {
+                alert("打分成功");
+            }
+        }
+        var imgStyle = function () {
+            $("img").addClass("img-responsive");
+        }
+
+        $(function () {
+            imgStyle();
+            $("#btnDing").button({
+                icons: { primary: 'ui-icon-check' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "20", "action": 1 }, rateFinish);
+            });
+            $("#btnCai").button({
+                icons: { primary: 'ui-icon-closethick' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "20", "action": -1 }, rateFinish);
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/Index.aspx">红领巾社区</a>
+            </div>
+            <div id="navbar" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav" id="header-menu">
+                    <li class="active"><a href="/Index.aspx">首页</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li id="divLoginArea">
+                        <a href="javascript:;" onclick="modaldemo()">登录</a>
+                    </li>
+                    <li id="divLoginOutArea" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">欢迎您，<span id="spanUserName"></span><span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/FindPassword.aspx">修改密码</a></li>
+                            <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+            </div>
+
+            <!-- /.nav-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- /.navbar -->
+    <div class="container">
+        <form method="post" action="./ViewArticle.aspx?id=20" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTIwNzQ0MjkzMjhkZNbbeL38Ox0VsgdXW+ie5WCZQJ22fxZlT9COXWbfTw20" />
+
+            
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="text-primary">
+                日本进一步放宽移民政策<br />
+            </h4>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <p>
+	2015年，日本成为全球&ldquo;年龄最大的&rdquo;国家，全日本有超过一半的人口年龄超过46岁。人口呈规模式缩减的日本，在2017年开始向外籍劳工打开大门，截至2017年10月，约有128万外国人在日本工作，同比增加了18％。与此同时，大摩于今年9月发布了蓝皮书报告，指出日本已经从经济增长的落后者成为领导者，日本的&ldquo;平均每工时生产率&rdquo;已经跃升至G7国家榜首，超过了英国和美国。</p>
+<p>
+	2017年，全日本仅有94.6万个新生儿出生，为1899年日本有统计数据以来新生儿出生最少的一年。 同年，有134万日本人去世。也就是说2017年一年，全日本本土人口规模净缩减约40万。 整个20世纪，日本的人口规模从1900年的4400万增长到2000年的1.28亿。</p>
+<p>
+	上个世纪70年代，日本的人口出生率曾冲到一个高峰值，平均一个日本女性生育2.1个孩子，而现在，这个数字跌倒了1.4个 （略高于2017年中国的人均1.24个），远低于相对富裕的美国和瑞典。</p>
+<p>
+	日本统计局曾经预测，日本如果不改变自己的移民政策，又或者日本女性如果不提高自己生孩子的平均数量，那么到2050年，全日本人口将跌至1亿左右（2017年日本人口规模约为1.27亿）；而联合国的预测是截止到2100年，全日本的人口将跌至8500万。</p>
+<p>
+	<img alt="" src="https://img1.jiemian.com/jiemian/original/20181009/153908230975572100_a580xH.jpg" /></p>
+<p>
+	<em>图一：全球年龄中位数最老的国家和地区比较&nbsp;</em></p>
+<p>
+	<strong>日本将实施三大措施来减缓人口规模缩减</strong></p>
+<p>
+	<strong>（一）调整外籍劳工日语资格测试 (JLPT)</strong></p>
+<p>
+	为了解决日益加深的劳动力短缺问题， 日本对外籍劳力保持进一步开放。 2019年4月，日本政府外交部将调整外来劳工日语语言测试内容，该测试包含听力和阅读， 以后会增加写作和口语测试。</p>
+<p>
+	测试的内容将从以前的偏学术转向偏重工作场所的实用日语表达，侧重测试申请人在日本的日常生活以及商业环境中的理解和日语使用能力，例如拨打电话和安排工作会议。该测试是评估在日本求职的外籍人士的主要考核标准之一。</p>
+<p>
+	日本本土和海外地区都可以考， 首先将从越南、菲律宾这些东南亚廉价劳动力输出国举行，测试结果将由计算机评定。</p>
+<p>
+	<img alt="" src="https://img2.jiemian.com/jiemian/original/20181009/153908230993833500_a580xH.jpg" /></p>
+<p>
+	<em>图二：截止到2018年上半年，已经有29.1万越南人在日就业​</em></p>
+<p>
+	目前日本雇主和工作项目使用的日语能力测试，多是针对学术环境和学生生活中使用的语言。参加JLPT的人中仅有三分之一是在日本留学的交换生，很显然，JLPT 有必要为其他的三分之二的非日本交换学生做适当改变。</p>
+<p>
+	<strong>（二）推出5年长期工作许可 取消行业限制</strong></p>
+<p>
+	为了解决建筑，农业，护理和其他劳动密集型行业劳动力短缺问题，日本将在明年4月制定一份五年工作许可证，不再对申请人的就业行业做限制。</p>
+<p>
+	日本政府还计划在全日本，尤其外籍就业人士较多的城市开设30多个外籍劳力协助中心，帮助小型企业吸纳更多的外籍劳力。此外，还将在日本不同地区举办研讨会，以提高日本雇主的外籍劳力雇佣法律知识，并提供咨询服务。</p>
+<p>
+	<img alt="" src="https://img3.jiemian.com/jiemian/original/20181009/15390823108217900_a580xH.jpg" /></p>
+<p>
+	<em>图三：日本川口市芝园团地定期举办文化交流活动，在芝园团地华人占比超50%。（来源：环球时报）</em></p>
+<p>
+	<img alt="" src="https://img2.jiemian.com/jiemian/original/20181009/153908231022477600_a580xH.jpg" /></p>
+<p>
+	<em>图四：东京、名古屋和大阪等地区成为外籍人士主要聚集区​</em></p>
+<p>
+	为了实现上述目标，日本政府（METI）在2019年的预算当中预留了近88万美元的预算 （约1亿日元）来扶持本国中小企业吸纳外籍劳工的工作。外国劳力协助中心的核心能力主要为：如何将农民工有效培训为建筑业工人，并提供日本的劳动力管理和在日本生活的技巧常识辅导。</p>
+<p>
+	<img alt="" src="https://img1.jiemian.com/jiemian/original/20181009/153908231034594200_a580xH.jpg" /></p>
+<p>
+	<em>图五：日本的金属铸造、锻造和金属压制业、渔业和食品服务等行业对外籍劳工的需求规模约为50万左右​</em></p>
+<p>
+	2018年上半年里，日本外籍居民增加了2.9％达263万，为历史新高。尤其是技术类实习生以及新增的护理工作者类别显示出显着的增长。</p>
+<p>
+	而在2007年，全日本的外籍劳工人数总规模不过30万，2017年也不过接近130万人。截止到2018年上半年， 263万的外籍居民占全日人口比重约为2％左右；其中以已经接受过技术实习培训的外籍人员增速最多，达4％以上，这一群体的规模为28.6万人左右；另一个外籍劳工迅速增长的行业是<strong>护理业</strong>，这是日本在2017年11月新增加的对外籍劳工开放的行业。</p>
+<p>
+	日本政府将于明年4月开始向非熟练外国工人发放签证，以帮助改善日本小企业和农村地区严重的劳动力短缺，预计日本的外籍劳工规模仍将保持上升。</p>
+<p>
+	<img alt="" src="https://img2.jiemian.com/jiemian/original/20181009/153908231049220800_a580xH.jpg" /></p>
+<p>
+	<em>图六：中国已经成为日本外籍劳工最大来源国​</em></p>
+<p>
+	在日本的外籍永久居民和&ldquo;特殊永久居民&rdquo;占外籍人士比重约四成。有学生身份的人占12.3％，即32.4万人左右，而技术实习生占比10.8％。</p>
+<p>
+	<strong>（三）放宽商务高管签证要求 吸引外籍企业家</strong></p>
+<p>
+	2018年8月《日经亚洲评论报》报道指出，日本将很快放宽对商业高管人员签证的资格要求，寻求吸引更多有才华的企业家。申请人目前必须在日本有一个线下办公场所，即使申请者租赁的是共享办公室亦可。租用共享办公空间一方面降低运营成本，同时外籍企业家还能与其他商业机构多些交流机会与场所。</p>
+<p>
+	此前，阻碍外籍人士申请日本商务高管签证障碍主要在于日本的非共享办公室租金昂贵，或需要日本担保人。</p>
+<p>
+	不过，日本商务高管签证申请者的公司须经营至少3年，并在共享办公空间有注册记录。此外，还需要得到日本对外贸易组织的支持；申请该签证的外籍人士创立企业需要拥有至少500万日元（约4.5万美元），并雇佣两名全职员工。</p>
+<p>
+	2016年，约有2万名非日籍人士以日本商务高管签证留在日本，这一人群的规模在持有中长期居住日本签证的外籍人士当中占比不到1％。日本政府也在考虑修改签证要求，以支持有计划在日本开办企业的人。</p>
+<p>
+	<img alt="" src="https://img3.jiemian.com/jiemian/original/20181009/153908231061426200_a580xH.jpg" /></p>
+<p>
+	<em>图七：东京 Gengo 翻译外包公司有六成员工为非日籍人士</em></p>
+<p>
+	在2018年上半年中，进入日本的外国人增加了15％，达到1538万。以商务高管签证以及工程、人文和国际服务专家签证进入日本的人数显著增加。</p>
+<p>
+	统计在中国大陆、中国台湾和菲律宾的游轮上停留在日本的外籍游客，持有临时登陆日本许可证的入境者在2018年上半年里上升了12.2％至115万。</p>
+<p>
+	据日本卫生、劳动和福利部统计，日本政府在革新自己的移民政策上走出来喜人的第一步。</p>
+<p>
+	今年9月，大摩发表蓝皮书，表达了对日本经济的乐观看好。原因是日本的平均每工时生产率已经跃升至 G7国家榜首，超英美；而每工时平均生产率增长是一个重要的衡量经济体长期发展的指标。</p>
+<p>
+	此外，日本的实际私人资本支出增速创新高，已经连续7个季度保持增长。由于在人工智能、大数据以及高新技术制造的大投入，日本大型企业的资本支出预计在今后的2年里，仍将保持7%的年增长速度。&nbsp;</p>
+<p>
+	大摩如此看好日本， 定论日本已经走出了连续三十年的低经济增长和低股权回报率阶段。日本宏观生产效率的增长和微观层面企业的表面走强，将推动MSCI日本股的股权收益率（ROE)，预期到2025年MSCI日本股的ROE将升至12%，优化的生产效率将抬升日本的实际利率，增加持有海外资产的成本，令日元实际有效汇率走强。</p>
+
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-10">
+            <strong>发表时间：2018/10/10 8:17:29
+            </strong>
+        </div>
+        <div class="col-lg-2">
+            <a class="btn btn-default" id="btnDing"><span class="glyphicon glyphicon-thumbs-up"></span>推荐</a>
+            <a class="btn btn-default" id="btnCai"><span class="glyphicon glyphicon-thumbs-down "></span>反对</a>
+        </div>
+    </div>
+    <hr />
+    <div class="row">
+        <div class="col-lg-12">
+            <h4>评论列表</h4>
+            <div class="">
+                <ol id="ulComments">
+                </ol>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <textarea class="form-control" placeholder="说两句吧..." id="txtComment"></textarea><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-1 col-lg-offset-11">
+            <input type="button" class="btn btn-default" value="评论" id="btnPostComment" />
+        </div>
+    </div>
+
+        
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E1B165C8" /></form>
+        
+        
+        <hr />
+        <footer>
+            <p>&copy; 本站所有信息均采集于互联网,如有侵权请联系：qctvip@vip.163.com</p>
+            <div class="hidden">
+            <script src="https://s19.cnzz.com/z_stat.php?id=1275095046&web_id=1275095046" type="text/javascript"></script>
+            </div>
+        </footer>
+    </div>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">用户登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="txtUserName" class="col-sm-2 col-md-5 control-label">用户名</label>
+                            <div class="col-sm-3">
+                                <input type="email" class="form-control" id="txtUserName" placeholder="用户名" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="txtPwd" class="col-sm-2 col-md-5 control-label">密码</label>
+                            <div class="col-sm-3">
+                                <input type="password" class="form-control" id="txtPwd" placeholder="密码" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10 col-md-offset-5">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" />
+                                        记住密码
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="text-left">
+                        <a href="/RegUser.aspx">注册</a>
+                        <a href="/FindPassword.aspx">忘记密码?</a>
+                    </div>
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Visual Studio Browser Link -->
+<script type="application/json" id="__browserLink_initializationData">
+    {"appName":"Unknown","requestId":"2175cfc750b54295a9dee796cbc70250"}
+</script>
+<script type="text/javascript" src="http://localhost:3285/f03e4909866e4711a8dd495b7f39e2ba/browserLink" async="async"></script>
+<!-- End Browser Link -->
+
+</body>
+</html>

@@ -1,0 +1,445 @@
+﻿
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+	红领巾社区
+</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!--开启响应式布局-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="description" /><meta name="author" /><link rel="icon" href="/images/logo.jpg" /><link href="/js/bootstrap/css/bootstrap.css" rel="stylesheet" />
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/js/common.js"></script>
+    <style>
+        /*
+        * Style tweaks
+        * --------------------------------------------------
+        */
+        html,
+        body {
+            overflow-x: hidden; /* Prevent scroll on narrow devices */
+            /*font-family: KaiTi;*/
+        }
+
+        body {
+            padding-top: 70px;
+        }
+
+        footer {
+            padding: 30px 0;
+        }
+    </style>
+    <script type="text/javascript">
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        var loginFinish = function (data) {
+            if (data == "ok") {
+                //alert("成功");
+                $("#divLogin").dialog("close"); //登录成功关闭窗口
+                checkLogin();//登录成功，刷新登录区域的显示
+            }
+            else {
+                alert("用户名密码错误");
+            }
+        };
+        $(function () {
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+
+        $(function () {
+            //绑定菜单列表
+            $.post("/ajax/GetChannel.ashx", { "action": "parent" }, function (data) {
+                var chas = $.parseJSON(data);
+                for (var i = 0; i < chas.length; i++) {
+                    var cha = chas[i];
+                    $('<li><a href="/Art/ViewChannel.aspx?id=' + cha.Id + '">' + cha.Name + '</a></li>').appendTo("#header-menu");
+                }
+            })
+        })
+    </script>
+    
+    
+    
+    
+    <script src="/js/common.js"></script>
+    <script type="text/javascript">
+        //提交评论完成后的处理
+        var postFinish = function (data) {
+            //var oEditor = CKEDITOR.instances.txtComment;
+            if (data == "ok") {
+                //把评论的内容添加到界面上
+                $("<li>"+$("#txtComment").val()+"</li>").appendTo("#ulComments");
+                //$("<li>" + oEditor.getData() + "</li>").appendTo("#ulComments");
+
+
+            }
+            else if (data == "mod") {
+                alert("等待审核");
+            }
+            else if (data == "banned") {
+                alert("您的评论内容含有禁用词汇，请注意文明用语！");
+            }
+            else {
+                alert("服务器返回错误:" + data);
+            }
+            //清空CKEditor
+            //oEditor.setData("");//设置txtComment的内容也不能影响CKEditor
+            $("#txtComment").val("");//评论提交成功后清除文本框
+        };
+        $(function () {
+            //启动的时候通过ajax加载评论
+            $.post("/ajax/GetComments.ashx", { "articleId": "21" },
+            function (data) {
+                var comments = $.parseJSON(data);//和eval一样是把json字符串转换为对象
+                for (var i = 0; i < comments.length; i++) {
+                    //把每条评论添加到ulComments上
+                    var comment = comments[i];
+                    $("<li>" + ubbToHtml(comment.Msg) + "</li>").appendTo("#ulComments");
+                }
+            });
+            //todo:做静态页的时候思考为什么通过ajax加载评论，为什么有的网站在另外一个页面显示评论
+            $("#btnPostComment").click(function () {
+                var msg = $("#txtComment").val();
+                //判断是否为空
+                if (msg == null || msg == "" || msg == undefined) {
+                    alert("请输入评论内容");
+                    return;
+                }
+                //CKEditor是把原先的textarea替换（replace）调，然后画自己的内容，所以读取textarea的value并不能得到CKEditor当前编辑的内容
+                //var oEditor = CKEDITOR.instances.txtComment;
+                //var msg = oEditor.getData();
+                //通过ajax提交评论
+                $.post("/ajax/PostComment.ashx",
+                    { "articleId": "21", "msg": msg },
+                    postFinish);
+            });
+        });
+
+        //    $(function () {
+        //        CKEDITOR.replace('txtComment',
+        //{
+        //    extraPlugins: 'bbcode',
+        //    removePlugins: 'bidi,button,dialogadvtab,div,filebrowser,flash,format,forms,horizontalrule,iframe,indent,justify,liststyle,pagebreak,showborders,stylescombo,table,tabletools,templates',
+        //    toolbar:
+        //    [
+        //        ['Source', '-', 'Save', 'NewPage', '-', 'Undo', 'Redo'],
+        //        ['Find', 'Replace', '-', 'SelectAll', 'RemoveFormat'],
+        //        ['Link', 'Unlink', 'Image'],
+        //        '/',
+        //        ['FontSize', 'Bold', 'Italic', 'Underline'],
+        //        ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+        //        ['TextColor', '-', 'Smiley', 'SpecialChar', '-', 'Maximize']
+        //    ],
+        //    smiley_images:
+        //    [
+        //        'regular_smile.gif', 'sad_smile.gif', 'wink_smile.gif', 'teeth_smile.gif', 'tounge_smile.gif',
+        //        'embaressed_smile.gif', 'omg_smile.gif', 'whatchutalkingabout_smile.gif', 'angel_smile.gif', 'shades_smile.gif',
+        //        'cry_smile.gif', 'kiss.gif'
+        //    ],
+        //    smiley_descriptions:
+        //    [
+        //        'smiley', 'sad', 'wink', 'laugh', 'cheeky', 'blush', 'surprise',
+        //        'indecision', 'angel', 'cool', 'crying', 'kiss'
+        //    ]
+        //});
+        //    });
+    </script>
+    <script type="text/javascript">
+        var rateFinish = function (data) {
+            if (data == "duplicate") {
+                alert("同一段视频24小时之内只能打分一次");
+            }
+            else {
+                alert("打分成功");
+            }
+        }
+        var imgStyle = function () {
+            $("img").addClass("img-responsive");
+        }
+
+        $(function () {
+            imgStyle();
+            $("#btnDing").button({
+                icons: { primary: 'ui-icon-check' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "21", "action": 1 }, rateFinish);
+            });
+            $("#btnCai").button({
+                icons: { primary: 'ui-icon-closethick' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "21", "action": -1 }, rateFinish);
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/Index.aspx">红领巾社区</a>
+            </div>
+            <div id="navbar" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav" id="header-menu">
+                    <li class="active"><a href="/Index.aspx">首页</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li id="divLoginArea">
+                        <a href="javascript:;" onclick="modaldemo()">登录</a>
+                    </li>
+                    <li id="divLoginOutArea" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">欢迎您，<span id="spanUserName"></span><span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/FindPassword.aspx">修改密码</a></li>
+                            <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+            </div>
+
+            <!-- /.nav-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- /.navbar -->
+    <div class="container">
+        <form method="post" action="./ViewArticle.aspx?id=21" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTIwNzQ0MjkzMjhkZNbbeL38Ox0VsgdXW+ie5WCZQJ22fxZlT9COXWbfTw20" />
+
+            
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="text-primary">
+                对彭斯的演讲，几位中国青年有话说<br />
+            </h4>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <p style="text-indent: 2em;">
+	今年以来，美国挑起的&ldquo;贸易战&rdquo;不断升温，紧接着人们发现，经济问题正在变成政治问题。</p>
+<p style="text-indent: 2em;">
+	从多次拒绝中国科学家赴美签证，频频出动FBI排查华人学者，再到&ldquo;全面取消中国留学生签证&rdquo;的传言，美国传来的各种讯息，让很多人感到&ldquo;恍若隔世&rdquo;，有人担心&ldquo;麦卡锡主义阴影重新笼罩美国&rdquo;。</p>
+<p style="text-indent: 2em;">
+	彭斯副总统最近的一次演讲，印证了人们的担忧，更让我们这些关心国际国内局势的中国年轻人感到震惊&mdash;&mdash;演讲中的无端指责与恶意中伤，会让中美关系走向何处？</p>
+<p style="text-indent: 2em;">
+	一位中年教授给我们发来一段文字，满是失望之情。他还记得当年在复旦大学校园里聆听美国前总统里根的演讲，里根总统对中美关系的激情描述，让他印象深刻。然而彭斯先生的演讲，却&ldquo;忽略了两国之间的基本事实&rdquo;，字里行间&ldquo;充满了高高在上的傲慢与偏见&rdquo;。</p>
+<p style="text-indent: 2em;">
+	尽管彭斯在演讲中宣称，竞争并不总是意味着敌意，但我们遗憾地看到，这一演讲大多是敌意、仇视的产物。这也是为什么中国台湾女主持人黄智贤的有力反驳，会得到那么多人的自动转发和共鸣：&ldquo;中国从来不亏欠美国什么&rdquo;&ldquo;中国今日的国泰民安,并不是靠侵略与殖民。靠的,是我们人民的聪明,牺牲与勤奋&rdquo;。</p>
+<p style="text-indent: 2em;">
+	我们知道，随着美国中期选举临近，总有人喜欢拿中国说事儿，以拉升选情、抬高自己。但我们还是想借此机会与彭斯先生聊一聊，以中国年青一代的视野和认知，谈谈我们眼里的中美关系，以及历史与现实。</p>
+<p style="text-indent: 2em;">
+	<strong>彭斯先生在演讲中，以上帝视角谈到了很多&ldquo;中美往事&rdquo;，不过遗憾的是，这大多是一些&ldquo;选择性记忆&rdquo;，许多并不符合史实，自然也难以给人正确&ldquo;启示&rdquo;。</strong></p>
+<p style="text-indent: 2em;">
+	演讲中说，&ldquo;当中国经受&lsquo;百年耻辱&rsquo;之际，美国拒绝加入&rdquo;，却没说八国联军侵华时，美国派出了2100余人参战，并第一个登上天安门城楼，升起了星条旗。</p>
+<p style="text-indent: 2em;">
+	演讲中说，二战后，&ldquo;美国确保中国成为联合国的一部分，成为战后世界的一股重要力量&rdquo;，却完全不提美国蛮横地将中国钓鱼岛的&ldquo;施政权&rdquo;，私相授受给了日本。</p>
+<p style="text-indent: 2em;">
+	演讲中还说，1949年后&ldquo;中国开始威权扩张主义&rdquo;，双方随后就在朝鲜半岛交战，却闭口不提是美国派兵干涉朝鲜内战，发动对朝全面战争，越过三八线，直逼鸭绿江和图们江，甚至把战火烧到了新生的中华人民共和国国土上。我们的祖父辈告诉我们，当年他们跨过鸭绿江，为的就是&ldquo;保家卫国&rdquo;。</p>
+<p style="text-indent: 2em;">
+	以古论今、借古讽今，是一种重要的演讲艺术。但如果用随意剪裁的历史来教诲别人，只会亵渎历史、颠倒是非。</p>
+<p style="text-indent: 2em;">
+	<strong>事实上，对于中国今天的发展，彭斯先生同样是上帝视角，&ldquo;救世主&rdquo;的优越感尽显无疑。</strong></p>
+<p style="text-indent: 2em;">
+	彭斯先生在演讲中提到，美国在21世纪前夕向中国敞开大门，将中国纳入世界贸易组织。言下之意，中国应该感谢这份&ldquo;接纳&rdquo;。但他却不提中国为加入世贸组织历尽艰辛，也不提中国加入世贸组织是多轮多边谈判的结果，而不是美国单方面的&ldquo;恩赐&rdquo;。中国前总理朱镕基就曾感慨地说：&ldquo;我们已经谈了15年&hellip;&hellip;黑发人谈成了白发人。&rdquo;</p>
+<p style="text-indent: 2em;">
+	如彭斯先生所言，&ldquo;在过去17年，中国的GDP增长九倍，变成了世界第二大经济体&rdquo;，但这一切的背后，是中国2.87亿农民工、2000万民营企业家、数百万家庭，在为了改变自身命运摸爬滚打；是无数中国老百姓，在城市化的进程中不惜远离家庭走南闯北，在全球化的进程中愿意抓住最微薄的利润，他们白天当老板、晚上睡地板，成就了自己，富强了中国。</p>
+<p style="text-indent: 2em;">
+	没有谁比中国人更懂得自力更生的意义。中国的发展，一不输出革命，二不输出难民，是靠自己一步一个脚印打拼出来的。如果这样的勤恳也是一种错，那么所谓的正确道路又在哪里？</p>
+<p style="text-indent: 2em;">
+	彭斯先生认为，中美之间&ldquo;巨大贸易赤字&rdquo;，让美国&ldquo;在过去25年重建了中国&rdquo;，却有意回避了自由贸易的实质是一方愿意买、一方愿意卖。任何一个了解中美贸易的人都清楚，美国的繁荣，也得益于中国快速增长的经济和庞大的消费市场。今年6月，德意志银行发布的研究报告认为，美国实际上在中美双边贸易过程中获得了比中国更多的商业净利益。</p>
+<p style="text-indent: 2em;">
+	当年，中国要卖出几亿件衬衫，才能进口一架大客机；现在，中国对美出口一套450美元的西服，中美获得的利润分别为5%和84%。更不用说中国年轻人用的苹果手机了：一台苹果7手机售价最低为649美元，但属于中国的加工成本仅占不到1%。面对这些事实，不知彭斯们的&ldquo;美国吃亏论&rdquo;是如何立足的？</p>
+<p style="text-indent: 2em;">
+	我们清楚地知道，改革开放是中国和世界共同发展进步的伟大历程。中国近几十年来的繁荣发展，受益于中国人民一往无前的奋斗，也得益于与世界各国的经济、文化和民间的密切交往。我们记得改革开放初期发达国家的各种援助，记得外国对华投资产生的重要作用。也正因此，我们对世界心怀感念，希望通过自身的发展帮助世界上更多的人们。</p>
+<p style="text-indent: 2em;">
+	我们相信，世界很多地方的人们，都感受到了中国人和中国的善意。这也是为什么，中国倡议的&ldquo;一带一路&rdquo;，能吸引到这么多国家共同参与；为什么中国提出的&ldquo;人类命运共同体&rdquo;的理念，能写入联合国的文件。</p>
+<p style="text-indent: 2em;">
+	彭斯先生在演讲中引用了鲁迅先生的话，我们也想向他介绍一个中国成语：刻舟求剑。它的意思是说，时代的河流已经将我们带向远方，而有些人还宁愿在旧船舱中驻足。</p>
+<p style="text-indent: 2em;">
+	<strong>我们遗憾地看到，在经济全球化的今天，美国还手持&ldquo;双重标准&rdquo;，孤悬在旧时代的岸上。</strong></p>
+<p style="text-indent: 2em;">
+	彭斯先生指责中国军舰驱离美国军舰，却不提美国军舰驶入了中国南沙群岛12海里以内海域；污蔑中国在南海搞&ldquo;军事化&rdquo;，却不提美国在这个地区大搞军事演习，把大量的先进武器送到南海，而且在不断地构建新的军事基地。</p>
+<p style="text-indent: 2em;">
+	彭斯先生抱怨&ldquo;中国如今的军费高过亚太区地区所有国家总和&rdquo;，却不去说2019财年的美国军费历史性地达到了七千多亿美元，不仅为&ldquo;史上最高&rdquo;，也超过其他大国的总和。</p>
+<p style="text-indent: 2em;">
+	彭斯先生一方面耸人听闻地说，&ldquo;中国对美国的渗透和控制，触角已达到好莱坞、大学、智库、企业，甚至地方政府，无所不到，试图从经济、学术、舆论及政治全方面实施影响&rdquo;，另一方面又大言不惭地干涉中国的内政外交，对中国改革开放、&ldquo;中国制造2025&rdquo;和&ldquo;一带一路&rdquo;倡议等指手画脚。</p>
+<p style="text-indent: 2em;">
+	在演讲中，彭斯先生连中国的&ldquo;社会信用分数&rdquo;建设都难以容忍，认为这&ldquo;几乎控制人们生活的方方面面&rdquo;，却不愿意讲，美国对信用体系的构建已有100多年的历史了，不愿意讲美国人一出生就要向联邦政府申请一个伴随终身的社会安全号码（SSN），不愿意讲没有信用在美国寸步难行。</p>
+<p style="text-indent: 2em;">
+	至于指控&ldquo;中国发起了前所未有的行动，以影响美国公众舆论、2018年选举和2020年总统选举前的环境&rdquo;，不仅让中国感觉莫名其妙，连美国国土安全部部长尼尔森在10月3日都表示，目前没有证据表明中国试图破坏或改变2018年美国中期选举的结果。或许，美国才应该反思一下，自己是如何利用社交网站，在中东地区制造动荡，引发了连锁性的革命的。</p>
+<p style="text-indent: 2em;">
+	我们在美国的一些朋友，最担忧的是，中国人正在整体被&ldquo;妖魔化&rdquo;。一些在美国留学与工作的学生、同事，甚至已经入籍美国的华人，在给我们写电子邮件时，都格外小心翼翼。因为他们成了被攻击和排斥的对象，一不小心就会被认为&ldquo;从事各种间谍活动&rdquo;。已经有美国政要在一些公开场合宣称，&ldquo;几乎每个来到这个国家的学生都是间谍&rdquo;。</p>
+<p style="text-indent: 2em;">
+	中国有为数不少我们的同龄人在美国留学，这样的变化，让他们和他们的父母都感觉难以置信，&ldquo;难以想象这是人类文明推进到21世纪时美国仍拥有的逻辑&rdquo;。英国学者马丁&middot;雅克直言，&ldquo;在美国愈发具有煽动性和侵略性的反华言论面前，中国表现出了极大的耐心、尊严和清醒&rdquo;，&ldquo;如果中国也效仿美国的做法采取对抗，中美关系将出现&lsquo;自由落体&rsquo;式的下降，对整个世界都将带来严重后果&rdquo;。</p>
+<p style="text-indent: 2em;">
+	<strong>美国电影《蜘蛛侠》里有句台词，叫&ldquo;能力越大，责任越大&rdquo;。作为世界 &ldquo;第一大国&rdquo;&ldquo;超级强国&rdquo;，美国理应负起与自己个头匹配的责任。遗憾的是，这些年来，人们越来越感到失望。</strong></p>
+<p style="text-indent: 2em;">
+	我们记得，近年来美国一次次&ldquo;退群&rdquo;&mdash;&mdash;退出了巴黎协定，退出了联合国教科文组织，退出了联合国人权理事会&hellip;&hellip;仅仅在10月份，就退出了与伊朗签署的友好条约，退出了涉及国际法院管辖问题的《维也纳外交关系公约关于强制解决争端之任择议定书》。</p>
+<p style="text-indent: 2em;">
+	我们看到，曾经的&ldquo;自由贸易旗手&rdquo;，如今成了保护主义的大本营，频频以国家安全为由对各种贸易活动设限。在中国，苹果手机等产品随处可见，我们不觉得是威胁。但是在美国如果有人买了华为手机，在一些人看来，就成了威胁美国国家安全的严重事件。作为世界头号强国和科技强国的美国，已经脆弱到如此地步了吗？</p>
+<p style="text-indent: 2em;">
+	我们乐见美国&ldquo;重新伟大&rdquo;，但这样的伟大，不是建立在一家独大的基础上的，更不是建立在打压其他国家基础上的。这也是为什么彭斯的演讲，会让中国的年轻一代感到深深失望，乃至愤慨。</p>
+<p style="text-indent: 2em;">
+	我们记得，四十多年前我们的父辈通过&ldquo;乒乓外交&rdquo;，结束了两国20多年人员交往隔绝的局面，中美两国领导人以战略家的政治勇气和智慧，使中美关系取得历史性突破，实现了&ldquo;跨越太平洋的握手&rdquo;。</p>
+<p style="text-indent: 2em;">
+	我们记得，习近平主席与美国前总统奥巴马&ldquo;瀛台夜话&rdquo;，与特朗普总统&ldquo;故宫茶叙&rdquo;，两国元首一起谈历史、品香茗、赏文物、听京剧。那时全世界都看到，&ldquo;宽广的太平洋两岸有足够空间容纳中美两个大国&rdquo;。</p>
+<p style="text-indent: 2em;">
+	今年是中美发表建交公报40周年。作为年青一代，我们相信，美国发展好了，对中国有利；中国发展好了，对美国也有利。毕竟，中美是当今世界上体量最大的两个国家。两国相向而行，对于彼此、对于世界，都是巨大的正能量。</p>
+<p style="text-indent: 2em;">
+	美国作家马克&middot;吐温曾经说，手里拿锤子的人，看什么都像钉子。西谚又云，赠人玫瑰，手有余香。我们希望手握锤子的人越来越少，手捧玫瑰的人越来越多。毕竟，世界属于张开怀抱而不是握紧拳头的人。</p>
+
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-10">
+            <strong>发表时间：2018/10/10 8:19:26
+            </strong>
+        </div>
+        <div class="col-lg-2">
+            <a class="btn btn-default" id="btnDing"><span class="glyphicon glyphicon-thumbs-up"></span>推荐</a>
+            <a class="btn btn-default" id="btnCai"><span class="glyphicon glyphicon-thumbs-down "></span>反对</a>
+        </div>
+    </div>
+    <hr />
+    <div class="row">
+        <div class="col-lg-12">
+            <h4>评论列表</h4>
+            <div class="">
+                <ol id="ulComments">
+                </ol>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <textarea class="form-control" placeholder="说两句吧..." id="txtComment"></textarea><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-1 col-lg-offset-11">
+            <input type="button" class="btn btn-default" value="评论" id="btnPostComment" />
+        </div>
+    </div>
+
+        
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E1B165C8" /></form>
+        
+        
+        <hr />
+        <footer>
+            <p>&copy; 本站所有信息均采集于互联网,如有侵权请联系：qctvip@vip.163.com</p>
+            <div class="hidden">
+            <script src="https://s19.cnzz.com/z_stat.php?id=1275095046&web_id=1275095046" type="text/javascript"></script>
+            </div>
+        </footer>
+    </div>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">用户登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="txtUserName" class="col-sm-2 col-md-5 control-label">用户名</label>
+                            <div class="col-sm-3">
+                                <input type="email" class="form-control" id="txtUserName" placeholder="用户名" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="txtPwd" class="col-sm-2 col-md-5 control-label">密码</label>
+                            <div class="col-sm-3">
+                                <input type="password" class="form-control" id="txtPwd" placeholder="密码" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10 col-md-offset-5">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" />
+                                        记住密码
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="text-left">
+                        <a href="/RegUser.aspx">注册</a>
+                        <a href="/FindPassword.aspx">忘记密码?</a>
+                    </div>
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Visual Studio Browser Link -->
+<script type="application/json" id="__browserLink_initializationData">
+    {"appName":"Unknown","requestId":"64b9edb775c44ee08819a60447541176"}
+</script>
+<script type="text/javascript" src="http://localhost:3285/f03e4909866e4711a8dd495b7f39e2ba/browserLink" async="async"></script>
+<!-- End Browser Link -->
+
+</body>
+</html>

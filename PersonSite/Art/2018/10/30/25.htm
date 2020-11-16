@@ -1,0 +1,373 @@
+﻿
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+	红领巾社区
+</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!--开启响应式布局-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="description" /><meta name="author" /><link rel="icon" href="/images/logo.jpg" /><link href="/js/bootstrap/css/bootstrap.css" rel="stylesheet" />
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/js/common.js"></script>
+    <style>
+        /*
+        * Style tweaks
+        * --------------------------------------------------
+        */
+        html,
+        body {
+            overflow-x: hidden; /* Prevent scroll on narrow devices */
+            /*font-family: KaiTi;*/
+        }
+
+        body {
+            padding-top: 70px;
+        }
+
+        footer {
+            padding: 30px 0;
+        }
+    </style>
+    <script type="text/javascript">
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        var loginFinish = function (data) {
+            if (data == "ok") {
+                //alert("成功");
+                $("#divLogin").dialog("close"); //登录成功关闭窗口
+                checkLogin();//登录成功，刷新登录区域的显示
+            }
+            else {
+                alert("用户名密码错误");
+            }
+        };
+        $(function () {
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+
+        $(function () {
+            //绑定菜单列表
+            $.post("/ajax/GetChannel.ashx", { "action": "parent" }, function (data) {
+                var chas = $.parseJSON(data);
+                for (var i = 0; i < chas.length; i++) {
+                    var cha = chas[i];
+                    $('<li><a href="/Art/ViewChannel.aspx?id=' + cha.Id + '">' + cha.Name + '</a></li>').appendTo("#header-menu");
+                }
+            })
+        })
+    </script>
+    
+    
+    
+    
+    <script src="/js/common.js"></script>
+    <script type="text/javascript">
+        //提交评论完成后的处理
+        var postFinish = function (data) {
+            //var oEditor = CKEDITOR.instances.txtComment;
+            if (data == "ok") {
+                //把评论的内容添加到界面上
+                $("<li>"+$("#txtComment").val()+"</li>").appendTo("#ulComments");
+                //$("<li>" + oEditor.getData() + "</li>").appendTo("#ulComments");
+
+
+            }
+            else if (data == "mod") {
+                alert("等待审核");
+            }
+            else if (data == "banned") {
+                alert("您的评论内容含有禁用词汇，请注意文明用语！");
+            }
+            else {
+                alert("服务器返回错误:" + data);
+            }
+            //清空CKEditor
+            //oEditor.setData("");//设置txtComment的内容也不能影响CKEditor
+            $("#txtComment").val("");//评论提交成功后清除文本框
+        };
+        $(function () {
+            //启动的时候通过ajax加载评论
+            $.post("/ajax/GetComments.ashx", { "articleId": "114" },
+            function (data) {
+                var comments = $.parseJSON(data);//和eval一样是把json字符串转换为对象
+                for (var i = 0; i < comments.length; i++) {
+                    //把每条评论添加到ulComments上
+                    var comment = comments[i];
+                    $("<li>" + ubbToHtml(comment.Msg) + "</li>").appendTo("#ulComments");
+                }
+            });
+            //todo:做静态页的时候思考为什么通过ajax加载评论，为什么有的网站在另外一个页面显示评论
+            $("#btnPostComment").click(function () {
+                var msg = $("#txtComment").val();
+                //判断是否为空
+                if (msg == null || msg == "" || msg == undefined) {
+                    alert("请输入评论内容");
+                    return;
+                }
+                //CKEditor是把原先的textarea替换（replace）调，然后画自己的内容，所以读取textarea的value并不能得到CKEditor当前编辑的内容
+                //var oEditor = CKEDITOR.instances.txtComment;
+                //var msg = oEditor.getData();
+                //通过ajax提交评论
+                $.post("/ajax/PostComment.ashx",
+                    { "articleId": "114", "msg": msg },
+                    postFinish);
+            });
+        });
+
+        //    $(function () {
+        //        CKEDITOR.replace('txtComment',
+        //{
+        //    extraPlugins: 'bbcode',
+        //    removePlugins: 'bidi,button,dialogadvtab,div,filebrowser,flash,format,forms,horizontalrule,iframe,indent,justify,liststyle,pagebreak,showborders,stylescombo,table,tabletools,templates',
+        //    toolbar:
+        //    [
+        //        ['Source', '-', 'Save', 'NewPage', '-', 'Undo', 'Redo'],
+        //        ['Find', 'Replace', '-', 'SelectAll', 'RemoveFormat'],
+        //        ['Link', 'Unlink', 'Image'],
+        //        '/',
+        //        ['FontSize', 'Bold', 'Italic', 'Underline'],
+        //        ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+        //        ['TextColor', '-', 'Smiley', 'SpecialChar', '-', 'Maximize']
+        //    ],
+        //    smiley_images:
+        //    [
+        //        'regular_smile.gif', 'sad_smile.gif', 'wink_smile.gif', 'teeth_smile.gif', 'tounge_smile.gif',
+        //        'embaressed_smile.gif', 'omg_smile.gif', 'whatchutalkingabout_smile.gif', 'angel_smile.gif', 'shades_smile.gif',
+        //        'cry_smile.gif', 'kiss.gif'
+        //    ],
+        //    smiley_descriptions:
+        //    [
+        //        'smiley', 'sad', 'wink', 'laugh', 'cheeky', 'blush', 'surprise',
+        //        'indecision', 'angel', 'cool', 'crying', 'kiss'
+        //    ]
+        //});
+        //    });
+    </script>
+    <script type="text/javascript">
+        var rateFinish = function (data) {
+            if (data == "duplicate") {
+                alert("同一段视频24小时之内只能打分一次");
+            }
+            else {
+                alert("打分成功");
+            }
+        }
+        var imgStyle = function () {
+            $("img").addClass("img-responsive");
+        }
+
+        $(function () {
+            imgStyle();
+            $("#btnDing").button({
+                icons: { primary: 'ui-icon-check' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "114", "action": 1 }, rateFinish);
+            });
+            $("#btnCai").button({
+                icons: { primary: 'ui-icon-closethick' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "114", "action": -1 }, rateFinish);
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/Index.aspx">红领巾社区</a>
+            </div>
+            <div id="navbar" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav" id="header-menu">
+                    <li class="active"><a href="/Index.aspx">首页</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li id="divLoginArea">
+                        <a href="javascript:;" onclick="modaldemo()">登录</a>
+                    </li>
+                    <li id="divLoginOutArea" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">欢迎您，<span id="spanUserName"></span><span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/FindPassword.aspx">修改密码</a></li>
+                            <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+            </div>
+
+            <!-- /.nav-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- /.navbar -->
+    <div class="container">
+        <form method="post" action="./ViewArticle.aspx?id=114" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTIwNzQ0MjkzMjhkZNbbeL38Ox0VsgdXW+ie5WCZQJ22fxZlT9COXWbfTw20" />
+
+            
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="text-primary">
+                素问第22 脏气法时论篇-黄帝内经白话文素问<br />
+            </h4>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div id="htmlContent" class="contentbox">      <font face="黑体"><font size="5"><font ><strong>1脏气法时论篇原文和白话文翻译:</strong></font></font></font><br /> 　　<font >【原文】黄帝问曰：合人形以法四时五行而治，何如而从，何如而逆，得失之意，愿闻其事。</font><br /> 　　<font >【翻译】黄帝问道：结合人体五脏之气的具体情况，取法四时五行的生克制化规律，作为救治疾病的法则，怎样是从？怎样是逆呢？我想了解治法中的从逆和得失是怎麽一会事。</font><br /> <br /> 　　<font >【原文】岐伯对曰：五行者，金木水火土也，更贵更贱，以知死生，以决成败，而定五藏之气，间甚之时，死生之期也。</font><br /> 　　<font >【翻译】岐伯回答说：五行就是金、木、水、火、土，配合时令气候，有衰旺盛克的变化，从这些变化中可以测知疾病的死生，分析医疗的成败，并能确定五脏之气的盛衰、疾病轻重的时间，以及死生的日期。</font><br /> <br /> 　　<font >【原文】帝曰：愿卒闻之。</font><br /> 　　<font >【翻译】黄帝说：我想听你详尽地讲一讲。</font><br /> <br /> 　　<font >【原文】岐伯曰：肝主春，足厥阴少阳主治，其日甲乙，肝苦急，急食甘以缓之。心主夏，手少阴太阳主治，其日丙丁，心苦缓，急食酸以收之。脾主长夏，足太阴阳明主治，其日戊己，脾苦湿，急食苦以燥之。肺主秋，手太阴阳明主治，其日庚辛，肺苦气上逆，急食苦以泄之。肾主冬，足少阴太阳主治，其日壬癸，肾苦燥，急食辛以润之，开腠理，致津液，通气也。</font><br /> 　　<font >【翻译】岐伯说：肝属木、旺于春，肝与胆为表里，春天是足厥阴肝和足少阳胆主治的时间，甲乙属木，足少阳胆主甲木，足厥阴肝主乙木，所以肝胆旺日为甲乙；肝在志为怒，怒则气急，甘味能缓急，故宜急食甘以缓之。心属火，旺于夏，心与小肠为表里，夏天是手少阴和手太阳小肠主治的时间；丙丁属火，手少阴心主丁火，手太阳小肠主丙火，所以心与小肠的旺日为丙丁；心在志为喜，喜则气缓，心气过缓则心气虚而散，酸味能收敛，故宜急食酸以收之。脾属土，旺于长夏（六月），脾与胃为表里，长夏是足太阴脾和足阳明胃主治的时间；戊已属土，主太阴脾主已土，主阳明胃主戊土，所以脾与胃的旺日为戊已；脾性恶湿，湿盛则伤脾，苦味能燥湿，故宜急食苦以燥之。肺属金，旺于秋；肺与大肠为表里，秋天是手太阴肺和手阳明大肠主治的时间；庚辛属金，手太阴肺主辛金，手阳明大肠主庚金，所以肺与大肠的旺日为庚辛；肺主气，其性清肃，若气上逆则肺病，苦味能泄，故宜急食苦以泄之。肾属水，旺于冬，肾与膀胱为表里，冬天是足少阴肾与足太阴膀胱主治的时间；壬癸属水，足少阴肾主癸水，足太阳膀胱主壬水，所以肾与膀胱的旺日为壬癸；肾为水脏，喜润而恶燥，故宜急食辛以润之。如此可以开发腠理，运行津液，宜通五脏之气。</font><br /> <br /> 　　<font >【原文】病在肝，愈于夏，夏不愈，甚于秋，秋不死，持于冬，起于春，禁当风。肝病者，愈在丙丁，丙丁不愈，加于庚辛，庚辛不死，持于壬癸，起于甲乙。肝病者，平旦慧，下晡甚，夜半静。肝欲散，急食辛以散之，用辛补之，酸泻之。</font><br /> 　　<font >【翻译】肝脏有病，在夏季当愈，若至夏季不愈，到秋季病情就要加重；如秋季不死，至冬季病情就会维持稳定不变状态，到来年春季，病即好转。因风气通于肝，故肝并最禁忌受风。有肝病的人，愈于丙丁日；如果丙丁日不愈，到庚辛日病就加重；如果庚辛日不死，到壬癸日病情就会维持稳定不变状态，到了甲乙日病即好转。患肝病的人，在早晨的时候精神清爽，傍晚的时候病就加重。到半夜时便安静下来。肝木性喜条达而恶抑郁，故肝病急用辛味以散之，若需要补以辛味补之，若需要泻，以酸味泻之。</font><br /> <br /> 　　<font >【原文】病在心，愈在长夏，长夏不愈，甚于冬，冬不死，持于春，起于夏，禁温食热衣。心病者，愈在戊己，戊己不愈，加于壬癸，壬癸不死，持于甲乙，起于丙丁。心病者，日中慧，夜半甚，平旦静。心欲软，急食咸以软之，用咸补之，甘泻之。</font><br /> 　　<font >【翻译】心脏有病，愈于长夏；若至长夏不愈，到了冬季病情就会加重；如果在冬季不死，到了明年的春季病情就会维持稳定不变状态，到了夏季病即好转。心有病的人应禁忌温热食物，衣服也不能穿的太暖。有心病的人，愈于戊已日；如果戊已日不愈，到壬癸日病就加重；如果在壬癸日不死，到甲已日病情就会维持稳定不变状态，到丙丁日病即好转。心脏有病的人，在中午的时候神情爽慧，半夜时病就加重，早晨时便安静了。心病欲柔软，宜急食咸味以软之，需要补则以咸味补之，以肝味泻之。</font><br /> <br /> 　　<font >【原文】病在脾，愈在秋，秋不愈，甚于春，春不死，持于夏，起于长夏，禁温食饱食湿地濡衣。脾病者，愈在庚辛，庚辛不愈，加于甲乙，甲乙不死，持于丙丁，起于戊己。脾病者，日昳慧，日出甚，下晡静。脾欲缓，急食甘以缓之，用苦泻之，甘补之。</font><br /> 　　<font >【翻译】脾脏有病，愈于秋季；若至秋季不愈，到春季病就加重；如果在春季不死，到夏季病情就会维持稳定不变状态，到长夏的时间病即好转。脾病应禁忌吃温热性食物即饮食过饱、居湿地、穿湿衣等。脾有病的人，愈于庚辛日；如果在庚辛日不愈，到甲已日加重；如果在甲已日不死，到丙丁日病情就会维持稳定不变状态，到了戊已日病即好转。脾有病的人，在午后的时间精神清爽，日出时病就加重，傍晚是便安静了。脾脏病需要缓和，甘能缓中，故宜急食甘味以缓之，需要泻则用苦味药泻脾，以甘味补脾。</font><br /> <br /> 　　<font >【原文】病在肺，愈在冬，冬不愈，甚于夏，夏不死，持于长夏，起于秋，禁寒饮食寒衣。肺病者，愈在壬癸，壬癸不愈，加于丙丁，丙丁不死，持于戊己，起于庚辛。肺病者，下晡慧，日中甚，夜半静。肺欲收，急食酸以收之，用酸补之，辛泻之。</font><br /> 　　<font >【翻译】肺脏有病，愈于冬季；若至冬季不愈，到夏季病就加重；如果在夏季不死，至长夏时病情就会维持稳定不变状态，到了秋季病即好转。肺有病应禁忌寒冷饮食及穿的太单薄。肺有病的人，愈于壬癸日；如果在壬癸日不愈，到丙丁日病就加重；如果在丙丁日不死，到戊已日病情就会维持稳定不变状态，到了庚辛日，病即好转。肺有病的人，傍晚的时候精神爽慧，到午时病就加重，到半夜时变安静了。肺气欲收敛，宜急食酸味以收敛，需要补的，用酸味补肺，需要泻的，用辛味泻肺。</font><br /> <br /> 　　<font >【原文】病在肾，愈在春，春不愈，甚于长夏，长夏不死，持于秋，起于冬，禁犯焠（火矣） 热食温灸衣。肾病者，愈在甲乙，甲乙不愈，甚于戊己，戊己不死，持于庚辛，起于壬癸。肾病者，夜半慧，四季甚，下晡静。肾欲坚，急食苦以坚之，用苦补之，咸泻之。</font><br /> 　　<font >【翻译】肾脏有病，愈于春季；若至春季不愈，到长夏时病就加重；如果在长夏不死，到秋季病情就会维持稳定不变状态，到冬季病即好转。肾病禁食炙过热的食物和穿经火烘烤过的衣服。肾有病的人，愈于甲已日；如果在甲已日不愈，到戊已日病就加重；如果在戊已日不死，到庚辛日病情就会维持稳定不变状态，到壬癸日病即好转。肾有病的人，在半夜的时候精神爽慧，在一日当中辰、戌、丑、未四个时辰病情加重，在傍晚时便安静了。肾主必藏，其气欲坚，需要补的，宜急食苦味以坚之，用苦味补之，需要泻的，用咸味泻之。</font><br /> <br /> 　　<font >【原文】夫邪气之客于身也，以胜相加，至其所生而愈，至其所不胜而甚，至于所生而持，自得其位而起。必先定五藏之脉，乃可言间甚之时，死生之期也。</font><br /> 　　<font >【翻译】凡是邪气侵袭人体，都是以胜相加，病至其所生之时而愈，至其所不胜之时而甚，至其所生之时而病情稳定不变，至其自旺之时病情好转。但必须先明确五脏之平脉，然后始能推测疾病的轻重时间及死生的日期。</font><br /> <br /> 　　<font >【原文】肝病者，两胁下痛引少腹，令人善怒，虚则目盳盳无所见，耳无所闻，善恐，如人将捕之，取其经，厥阴与少阳，气逆，则头痛耳聋不聪颊肿。取血者。</font><br /> 　　<font >【翻译】肝脏有病，则两肋下疼痛牵引少腹，使人多怒，这是肝气实的症状；如果肝气虚，则出现两目昏花而视物不明，两耳也听不见声音，多恐惧，好象有人要逮捕他一样。治疗时，取用厥阴肝经和少阳胆经的经穴。如肝气上逆，则头痛、耳聋而听觉失灵、颊肿，应取厥阴、少阳经脉，刺出其血。</font><br /> <br /> 　　<font >【原文】心病者，胸中痛，胁支满，胁下痛，膺背肩甲间痛，两臂内痛；虚则胸腹大，胁下与腰相引而痛，取其经，少阴太阳，舌下血者。其变病，刺郄中血者。</font><br /> 　　<font >【翻译】心脏有病，则出现胸中痛，肋部支撑胀满，肋下痛，胸膺部、背部及肩胛间疼痛，两臂内侧疼痛，这是心实的症状。心虚，则出现胸腹部胀大，肋下和腰部牵引作痛。治疗时，取少阴心经和太阳小肠经的经穴，并刺舌下之脉以出其血。如病情有变化，与初起不同，刺委中穴出血。</font><br /> <br /> 　　<font >【原文】脾病者，身重善肌肉痿，足不收行，善瘈，脚下痛；虚则腹满肠鸣，飧泄食不化，取其经，太阴阳明少阴血者。</font><br /> 　　<font >【翻译】脾脏有病，则出现身体沉重，易饥，肌肉痿软无力，两足弛缓不收，行走时容易抽搐，脚下疼痛，这是脾实的症状；脾虚则腹部胀满，肠鸣，泄下而食物不化。治疗时，取太阴脾经、阳明胃经和少阴肾经的经穴，刺出其血。</font><br /> <br /> 　　<font >【原文】肺病者，喘咳逆气，肩背痛，汗出，尻阴股膝髀腨胻足皆痛；虚则少气不能报息，耳聋嗌干，取其经，太阴足太阳之外厥阴内血者。</font><br /> 　　<font >【翻译】肺脏有病，则喘咳气逆，肩背部疼痛，出汗，尻、阴、股、膝、髀骨、足等部皆疼痛，这是肺实的症状；如果肺虚，就出现少气，呼吸困难而难于接续，耳聋，咽干。治疗时，取太阴肺经的经穴，更取足太阳经的外侧及足厥阴内侧，即少阴肾经的经穴，刺出其血。</font><br /> <br /> 　　<font >【原文】肾病者，腹大胫肿，喘咳身重，寝汗出，憎风；虚则胸中痛，大腹小腹痛，清厥意不乐，取其经，少阴太阳血者。</font><br /> 　　<font >【翻译】肾脏有病，则腹部胀大，胫部浮肿，气喘，咳嗽，身体沉重，睡后出汗，恶风，这是肾实的症状；如果肾虚，就会出现胸中疼痛，大腹和小腹疼痛，四肢厥冷，心中不乐。治疗时，取足少阴肾经和足太阳膀胱经的经穴，刺出其血。</font><br /> <br /> 　　<font >【原文】肝色青，宜食甘，粳米牛肉枣葵皆甘。心色赤，宜食酸，小豆犬肉李韭皆酸。肺色白，宜食苦，麦羊肉杏薤皆苦。脾色黄，宜食咸，大豆豕肉栗藿皆咸。肾色黑，宜食辛，黄黍鸡肉桃葱皆辛。辛散，酸收，甘缓，苦坚，咸软。</font><br /> 　　<font >【翻译】肝合青色，宜食甘味，粳米、牛肉、枣、葵菜都是属于味甘的。心合赤色，宜食酸味，小豆、犬肉、李、韭都是属于酸味的。肺合白色，宜食苦味，小麦、羊肉、杏、薤都是属于苦味的。脾合黄色，宜食咸味，大豆、猪肉、栗、藿都是属于咸味的。肾合黑色，宜食辛味，黄黍、鸡肉、桃、葱都是属于辛味的。五味的功用：辛味能发散，酸味能收敛，甘味能缓急，苦味能坚燥，咸味能坚。</font><br /> <br /> 　　<font >【原文】毒药攻邪，五谷为养，五果为助，五畜为益，五菜为充，气味合而服之，以补精益气。此五者，有辛酸甘苦咸，各有所利，或散，或收，或缓，或急，或坚，或软，四时五藏，病随五味所宜也。</font><br /> 　　<font >【翻译】凡毒药都是可用来攻逐病邪，五谷用以充养五脏之气，五果帮助五谷以营养人体，五畜用以补益五脏，五菜用以充养脏腑，气味和合而服食，可以补益精气。这五类食物，各有辛、酸、甘、苦、咸的不同气味，各有利于某一脏气，或散，或收，或缓，或急，或坚等，在运用的时候，要根据春、夏、秋、冬四时和五脏之气的偏盛偏衰及苦欲等具体情况，各随其所宜而用之。</font>         <div class="chapter_Turnpage">          <div style="text-align:center;padding-bottom:10px;"></div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-10">
+            <strong>发表时间：2018/10/30 13:22:02
+            </strong>
+        </div>
+        <div class="col-lg-2">
+            <a class="btn btn-default" id="btnDing"><span class="glyphicon glyphicon-thumbs-up"></span>推荐</a>
+            <a class="btn btn-default" id="btnCai"><span class="glyphicon glyphicon-thumbs-down "></span>反对</a>
+        </div>
+    </div>
+    <hr />
+    <div class="row">
+        <div class="col-lg-12">
+            <h4>评论列表</h4>
+            <div class="">
+                <ol id="ulComments">
+                </ol>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <textarea class="form-control" placeholder="说两句吧..." id="txtComment"></textarea><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-1 col-lg-offset-11">
+            <input type="button" class="btn btn-default" value="评论" id="btnPostComment" />
+        </div>
+    </div>
+
+        
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E1B165C8" /></form>
+        
+        
+        <hr />
+        <footer>
+            <p>&copy; 本站所有信息均采集于互联网,如有侵权请联系：qctvip@vip.163.com</p>
+            <div class="hidden">
+            <script src="https://s19.cnzz.com/z_stat.php?id=1275095046&web_id=1275095046" type="text/javascript"></script>
+            </div>
+        </footer>
+    </div>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">用户登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="txtUserName" class="col-sm-2 col-md-5 control-label">用户名</label>
+                            <div class="col-sm-3">
+                                <input type="email" class="form-control" id="txtUserName" placeholder="用户名" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="txtPwd" class="col-sm-2 col-md-5 control-label">密码</label>
+                            <div class="col-sm-3">
+                                <input type="password" class="form-control" id="txtPwd" placeholder="密码" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10 col-md-offset-5">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" />
+                                        记住密码
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="text-left">
+                        <a href="/RegUser.aspx">注册</a>
+                        <a href="/FindPassword.aspx">忘记密码?</a>
+                    </div>
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Visual Studio Browser Link -->
+<script type="application/json" id="__browserLink_initializationData">
+    {"appName":"Unknown","requestId":"e4432cd70f084fd780d5d514de03f60b"}
+</script>
+<script type="text/javascript" src="http://localhost:3285/f03e4909866e4711a8dd495b7f39e2ba/browserLink" async="async"></script>
+<!-- End Browser Link -->
+
+</body>
+</html>

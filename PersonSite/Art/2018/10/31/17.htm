@@ -1,0 +1,373 @@
+﻿
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+	红领巾社区
+</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!--开启响应式布局-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="description" /><meta name="author" /><link rel="icon" href="/images/logo.jpg" /><link href="/js/bootstrap/css/bootstrap.css" rel="stylesheet" />
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/js/common.js"></script>
+    <style>
+        /*
+        * Style tweaks
+        * --------------------------------------------------
+        */
+        html,
+        body {
+            overflow-x: hidden; /* Prevent scroll on narrow devices */
+            /*font-family: KaiTi;*/
+        }
+
+        body {
+            padding-top: 70px;
+        }
+
+        footer {
+            padding: 30px 0;
+        }
+    </style>
+    <script type="text/javascript">
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        var loginFinish = function (data) {
+            if (data == "ok") {
+                //alert("成功");
+                $("#divLogin").dialog("close"); //登录成功关闭窗口
+                checkLogin();//登录成功，刷新登录区域的显示
+            }
+            else {
+                alert("用户名密码错误");
+            }
+        };
+        $(function () {
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+
+        $(function () {
+            //绑定菜单列表
+            $.post("/ajax/GetChannel.ashx", { "action": "parent" }, function (data) {
+                var chas = $.parseJSON(data);
+                for (var i = 0; i < chas.length; i++) {
+                    var cha = chas[i];
+                    $('<li><a href="/Art/ViewChannel.aspx?id=' + cha.Id + '">' + cha.Name + '</a></li>').appendTo("#header-menu");
+                }
+            })
+        })
+    </script>
+    
+    
+    
+    
+    <script src="/js/common.js"></script>
+    <script type="text/javascript">
+        //提交评论完成后的处理
+        var postFinish = function (data) {
+            //var oEditor = CKEDITOR.instances.txtComment;
+            if (data == "ok") {
+                //把评论的内容添加到界面上
+                $("<li>"+$("#txtComment").val()+"</li>").appendTo("#ulComments");
+                //$("<li>" + oEditor.getData() + "</li>").appendTo("#ulComments");
+
+
+            }
+            else if (data == "mod") {
+                alert("等待审核");
+            }
+            else if (data == "banned") {
+                alert("您的评论内容含有禁用词汇，请注意文明用语！");
+            }
+            else {
+                alert("服务器返回错误:" + data);
+            }
+            //清空CKEditor
+            //oEditor.setData("");//设置txtComment的内容也不能影响CKEditor
+            $("#txtComment").val("");//评论提交成功后清除文本框
+        };
+        $(function () {
+            //启动的时候通过ajax加载评论
+            $.post("/ajax/GetComments.ashx", { "articleId": "200" },
+            function (data) {
+                var comments = $.parseJSON(data);//和eval一样是把json字符串转换为对象
+                for (var i = 0; i < comments.length; i++) {
+                    //把每条评论添加到ulComments上
+                    var comment = comments[i];
+                    $("<li>" + ubbToHtml(comment.Msg) + "</li>").appendTo("#ulComments");
+                }
+            });
+            //todo:做静态页的时候思考为什么通过ajax加载评论，为什么有的网站在另外一个页面显示评论
+            $("#btnPostComment").click(function () {
+                var msg = $("#txtComment").val();
+                //判断是否为空
+                if (msg == null || msg == "" || msg == undefined) {
+                    alert("请输入评论内容");
+                    return;
+                }
+                //CKEditor是把原先的textarea替换（replace）调，然后画自己的内容，所以读取textarea的value并不能得到CKEditor当前编辑的内容
+                //var oEditor = CKEDITOR.instances.txtComment;
+                //var msg = oEditor.getData();
+                //通过ajax提交评论
+                $.post("/ajax/PostComment.ashx",
+                    { "articleId": "200", "msg": msg },
+                    postFinish);
+            });
+        });
+
+        //    $(function () {
+        //        CKEDITOR.replace('txtComment',
+        //{
+        //    extraPlugins: 'bbcode',
+        //    removePlugins: 'bidi,button,dialogadvtab,div,filebrowser,flash,format,forms,horizontalrule,iframe,indent,justify,liststyle,pagebreak,showborders,stylescombo,table,tabletools,templates',
+        //    toolbar:
+        //    [
+        //        ['Source', '-', 'Save', 'NewPage', '-', 'Undo', 'Redo'],
+        //        ['Find', 'Replace', '-', 'SelectAll', 'RemoveFormat'],
+        //        ['Link', 'Unlink', 'Image'],
+        //        '/',
+        //        ['FontSize', 'Bold', 'Italic', 'Underline'],
+        //        ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+        //        ['TextColor', '-', 'Smiley', 'SpecialChar', '-', 'Maximize']
+        //    ],
+        //    smiley_images:
+        //    [
+        //        'regular_smile.gif', 'sad_smile.gif', 'wink_smile.gif', 'teeth_smile.gif', 'tounge_smile.gif',
+        //        'embaressed_smile.gif', 'omg_smile.gif', 'whatchutalkingabout_smile.gif', 'angel_smile.gif', 'shades_smile.gif',
+        //        'cry_smile.gif', 'kiss.gif'
+        //    ],
+        //    smiley_descriptions:
+        //    [
+        //        'smiley', 'sad', 'wink', 'laugh', 'cheeky', 'blush', 'surprise',
+        //        'indecision', 'angel', 'cool', 'crying', 'kiss'
+        //    ]
+        //});
+        //    });
+    </script>
+    <script type="text/javascript">
+        var rateFinish = function (data) {
+            if (data == "duplicate") {
+                alert("同一段视频24小时之内只能打分一次");
+            }
+            else {
+                alert("打分成功");
+            }
+        }
+        var imgStyle = function () {
+            $("img").addClass("img-responsive");
+        }
+
+        $(function () {
+            imgStyle();
+            $("#btnDing").button({
+                icons: { primary: 'ui-icon-check' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "200", "action": 1 }, rateFinish);
+            });
+            $("#btnCai").button({
+                icons: { primary: 'ui-icon-closethick' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "200", "action": -1 }, rateFinish);
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/Index.aspx">红领巾社区</a>
+            </div>
+            <div id="navbar" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav" id="header-menu">
+                    <li class="active"><a href="/Index.aspx">首页</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li id="divLoginArea">
+                        <a href="javascript:;" onclick="modaldemo()">登录</a>
+                    </li>
+                    <li id="divLoginOutArea" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">欢迎您，<span id="spanUserName"></span><span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/FindPassword.aspx">修改密码</a></li>
+                            <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+            </div>
+
+            <!-- /.nav-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- /.navbar -->
+    <div class="container">
+        <form method="post" action="./ViewArticle.aspx?id=200" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTIwNzQ0MjkzMjhkZNbbeL38Ox0VsgdXW+ie5WCZQJ22fxZlT9COXWbfTw20" />
+
+            
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="text-primary">
+                灵枢13 经筋-黄帝内经白话文灵枢<br />
+            </h4>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div id="htmlContent" class="contentbox">      <font face="黑体"><font size="5"><font ><strong>1经筋原文和白话文翻译:</strong></font></font></font><br /> 　　<font >【原文】足太阳之筋，起于足小趾，上结于踝，邪上结于膝，其下循足外侧，结于踵，上循跟，结于腘；其别者，结于□外，上腘中内廉，与腘中并上结于臀，上挟脊上项；其支者，别入结于舌本；其直者，结于枕骨，上头，下颜，结于鼻；其支者，为目上网，下结于頄；其支者，从腋后外廉结于肩□；其支者，入腋下，上出缺盆，上结于完骨；其支者，出缺盆，邪上出于頄。其病小趾支跟肿痛，腘挛，脊反折，项筋急，肩不举，腋支缺盆中纽痛，不可左右摇″在燔针劫刺，以知为数，以痛为输，名曰仲春痹也。</font><br /> 　　<font >【翻译】足太阳膀胱经的筋，起于足小趾，上行结聚于足外踝，再斜行向上结聚于膝部。它在足跗下行的那支，沿足外踝的外侧，结聚于踵部，上沿足跟，结聚于腘窝部。它别行的另一支，结聚于腿肚外侧，上行入于膝腘窝的内侧，与前在腘中的筋并行，上行结于臀部，再上行挟脊骨两旁而上至于项。由此分出的支筋，别行入内而结聚于舌根。它直行的那支，上结于枕骨，上行头顶，下至眉上，结聚于鼻的两旁。从鼻分出的支筋，绕目上睫而下行，结聚于颧骨部。它的又一支筋，从腋后外缘，上行结聚于肩髃穴处。由此处分出的支筋，入于腋下，上行而出于缺盆，再上行结聚于耳后的完骨部。再有一支筋，从缺盆别出，斜上出于颧骨部。本经筋所发生的病症有：足小趾及跟踵部疼痛，膝腘部拘挛，脊背反折，项筋发急，肩不能上举，腋部及缺盆部纽结疼痛，肩部不能左右摇动。治疗时要采用火针，不用迎随手法，以病见效确定针刺次数，以痛处作为腧穴，这种病叫做仲春痹。</font><br /> <br /> 　　<font >【原文】足少阳之筋，起于小指次指，上结外踝，上循胫外廉，结于膝外廉；其支者别起外辅骨，上走髀，前者结于伏兔之上，后者，结于尻；其直者，上乘□季胁，上走腋前廉，系于膺乳，结于缺盆；直者，上出腋，贯缺盆，出太阳之前，循耳后，上额角，交巅上，下走颔，上结于頄；支者，结于目眦为外维。具病小指次指支转筋，引膝外转筋，膝不可屈伸，腘筋急前引髀，后引尻，即上乘□季胁痛，上引缺盆、膺乳、颈维筋急。从左之右，右目不开，上过右角，并跷脉而行，左络于右，故伤左角，右足不用，命曰维筋相交。治在燔针劫刺，以知为数，以痛为输，名曰孟春痹也。</font><br /> 　　<font >【翻译】足少阳胆经的筋，起于足第四趾端，上行结聚于外踝，下沿胫骨外侧，结聚于膝部外侧的阳陵泉穴。其从外踝分出的支筋，别走外辅骨，上走髀部，前支结聚于伏兔处，后支结聚于尻部。其直行之筋，向上行至胁下空软处，再上走至腋部的前缘，横过胸乳，结聚于缺盆。又一直行之筋，上出于腋部，贯入缺盆，出足太阳经筋之前，沿着耳后，上至额角，会于头顶，再下行至下巴，上结于颧骨部。由此处分出的支筋，结聚于眼外角，为眼的外维。本经筋所发生的病症有：足第四趾转筋，牵引到膝外侧也转侧，膝关节不能屈伸，膝窝中的筋拘急，前面牵引髀部，后面牵引尻部，向上牵及胁下空软处和软肋部疼痛，再向上牵引到缺盆、胸、乳、颈等部位的筋都感到拘紧。如果从左侧向右侧的筋感到拘紧，右眼就不能睁开，本筋上过右头角，与蹻脉并行，左侧的筋与右侧相连结，所以，伤了左侧的筋，右脚就不能动，这叫做维筋相交。治疗时采用火针法，不用迎随手法，以病愈确定针刺次数，以痛处作为腧穴，这种病叫做孟春痹。</font><br /> <br /> 　　<font >【原文】足阳明之筋，起于中三指，结于跗上，邪外上加于辅骨，上结于膝外廉，直上结于髀枢，上循胁属脊；其直者，上循骭，结于缺盆；其支者，结于外辅骨，合少阳；其直者，上循伏兔，上结于髀，聚于阴器，上腹而布，至缺盆而结，上颈，上挟口，合于頄，下结于鼻，上合于太阳。太阳为目上网，阳明为目下网；其支者，从颊结于耳前。其病足中指支胫转筋，脚跳坚，伏兔转筋，髀前踵，溃疝，腹筋急，引缺盆及颊，卒口僻；急者，目不合，热则筋纵，目不开颊筋有寒，则急，引颊移口，有热则筋弛纵，缓不胜收，故僻。治之以马膏，其急者；以白酒和桂，以涂其缓者，以桑钩钩之即以生桑炭置之坎中，高下以坐等。以膏熨急颊，且饮美酒，啖美炙肉，不饮酒者，自强也，为之三拊而已。治在燔针劫刺，以知为数，以痛为输，名曰季春痹也。</font><br /> 　　<font >【翻译】足阳明胃经之筋，起于足次趾外侧。结聚于足背，斜行外侧上方而至辅骨，向上结聚于膝外侧，直上结聚于髀枢部，上沿胁部，连属于脊柱。其直行之筋，从足背上行沿胫骨，结聚于膝。由此分出的支筋，结聚于外辅骨，与足少阳之筋相合。其直行的筋，上沿伏兔，再向上结于髀部，会聚于阴器，再向上行至腹部而散布，至缺盆而重新结聚，再上行通过颈部，挟口两旁，合手颧骨，下结于鼻，上合于足太阳之筋。足太阳是上眼胞的纲维，足阳明是下眼胞的纲维。从颧骨分出的支筋，通过颊部，结聚于耳的前方。本经之筋所发生的病症有：足中趾及胫部转筋，足背拘急，伏兔部转筋，大腿前部发肿，阴囊肿大，腹筋拘紧，牵引缺盆、面颊和嘴突然歪斜，如寒，眼就不能闭合；如热，筋弛缓，眼就不能睁开。颊筋有寒，就会牵扯面颊，使口不能闭合；颊筋有热，就会使筋弛缓无力，所以发生口角歪斜。治疗时，要用马脂，病较急的，将白酒和桂末涂抹于弛缓的一侧；病较缓的，用桑钩钩住口角，再将桑木炭火，置于地坑中，地坑的深浅与病人坐的高低相等，再用马脂熨贴挛急的颊部，同时要饮些美酒，吃点烤羊肉，不喝酒的人也要勉强喝点，并在患部再三抚摩就可以了。治疗转筋的病人，要采用火针法，不用迎随手法，以病愈确定针刺的次数，以痛处作为腧穴。这种病叫做季春痹。</font><br /> <br /> 　　<font >【原文】足太阴之筋，起于大指之端内侧，上结于内踝；其直者，络于膝内辅骨，上循阴股，结于髀，聚于阴器，上腹结于脐，循腹里，结于肋，散于胸中；其内者，着于脊。其病足大指支内踝痛，转筋痛膝内辅骨痛，阴股引髀而痛，阴器纽痛，下引脐两胁痛，引膺中脊内痛。治在燔针劫刺，以知为数，以痛为输，命曰孟秋痹也。</font><br /> 　　<font >【翻译】足太阴脾经之筋，起于足大趾之端的内侧，上行结聚于内踝。其直行的，上结于膝内辅骨，再向上沿大腿内侧，结聚于髀部，会聚于阴器，又上行至腹部，结于脐中，再沿腹内上行，结于胁部，散布于胸中。其行于内的筋，由阴器上行而附着于脊柱。本经之筋所发生的病症有：足大趾和内踝转筋疼痛，膝内辅骨疼痛，大腿内侧牵引髀部作疼，阴器有扭结痛之感，并上引脐部、两胁、胸膺及脊内部疼痛。治疗时，应当采用火针法，不用迎随手法，以病愈确定针刺的次数，以痛处作为腧穴。这种病叫做仲秋痹。</font><br /> <br /> 　　<font >【原文】足少阴之筋，起于小指之下并足太阴之筋，邪走内踝之下，结于踵，与太阳之筋合，而上结于内辅之下并太阴之筋，而上循阴股，结于阴器，循脊内挟膂上至项，结于枕骨，与足太阳之筋合。其病足下转筋，及所过而结者皆痛及转及转筋。病在此者，主□瘈及痉，在外者不能挽，在内者不能仰。故阳病者，腰反折不能俛，阴病者，不能仰。治在燔针劫刺以知为数，以痛为输。在内者熨引饮药，此筋折纽，纽发数甚者死不治，名曰仲秋痹也。</font><br /> 　　<font >【翻译】足少阴肾经之筋，起于足小趾的下面，与足太阴经之筋相合，斜从上至内踝的下方，结聚于足跟，与足太阳经之筋相合，上行结于内辅骨的下面，与足太阴经之筋相合，沿大腿内侧上行，结于阴器，又沿脊内，夹脊柱骨，上行至项部，结聚于枕骨，与足太阳经之经相合。本经之筋所发生的病症有：足下转筋，本经所循行和结聚的部位都感到疼痛和转筋。病在这方面的，以癫痫、拘挛和痉症为主。病在外，腰脊不能前俯；病在内，不能后仰，所以背部苦于拘急，腰就反折而不能前俯，腹部苦于拘急，身体就不能后仰。治疗时，应当采用火针法，不用迎随手法，以病愈确定针刺的次数，以痛处作为腧穴。如病在内，可用熨经、导引、饮服汤药。如转筋次数逐渐增多而又加重的，为不可治的死症。这种病叫做孟秋痹。</font><br /> <br /> 　　<font >【原文】足厥阴之筋，起于大指之上，上结于内踝之前，上循胫，上结内辅之下，上循阴股，结于阴器，络诸筋。其病足大指支，内踝之前痛，内辅痛，阴股痛转筋，阴器不用，伤于内则不起，伤于寒则阴缩入，伤于热则纵挺不收，治在行水清阴气；其病转筋者，治在燔针劫刺，以知为数，以痛为输，命曰季秋痹也。</font><br /> 　　<font >【翻译】足厥阴肝经之筋，起于足大趾之上，上行结于内踝之前的中封穴，上沿胫骨，再上结于膝内辅骨的下方，又沿大腿内侧上行，结于阴器，在此与其它经筋相联络。本经之筋所发生的病症有：足大趾、内踝前和内辅骨等处都感觉疼痛，大腿内侧疼痛并且转筋，前阴器不能使用，如伤于房劳就要阳痿，伤于寒邪则阴器缩入，伤于热邪则阴器挺直不收。治疗时，应当行水以治厥阴之气。对转筋病症，要用火针法，不用迎随手法，以病愈确定针灸次数，以痛处作为腧穴，这种病叫做季秋痹。</font><br /> <br /> 　　<font >【原文】手太阳之筋，起于小指之上，结于腕，上循臂内廉，结于肘内锐骨之后，弹之应小指之上，入结于腋下；其支者，后走腋后廉，上绕肩胛，循颈出走太阳之前，结于耳后完骨；其支者，入耳中；直者出耳上，下结于颔，上属目外眦。其病小指支肘内锐骨后廉痛，循臂阴，入腋下，腋下痛，腋后廉痛，绕肩胛引颈而痛，应耳中鸣痛引颔，目瞑良久乃得视，颈筋急，则为筋□，颈肿，寒热在颈者。治在燔针劫刺之，以知为数，以痛为输。其为肿者，复而锐之。本支者上曲牙，循耳前属目外眦，上颌结于角，其痛当所过者支转筋。治在燔针劫刺，以知为数，以痛为输，名曰仲夏痹也。</font><br /> 　　<font >【翻译】手太阳小肠经之筋，起于手小指上端，结于手腕部，上沿臂内缘，结于肘内高骨的后面，以手指弹之，会有酸麻感反应到小指上，再上行入结于腋下。其分出的支筋，向后从腋的后侧上行围绕肩胛，沿颈部出于足太阳经筋之前，结于耳后完骨。由此分出的支筋，入于耳中。其直行的筋，出于耳上，下行结于颔部，又上行属于眼外角。本经之筋所发生的病症有：手小指和肘内锐骨的后缘疼痛，沿臂内侧入腋下也痛，腋后侧也痛，围绕肩胛牵引颈部作痛，耳中鸣痛，并牵引颔部也痛，痛时必须闭目休息一段时间才能看见东西。颈筋拘急，寒热发于颈部的，就是鼠瘘、颈肿一类疾病。治疗时，当用火针法，以病愈确定针刺次数，以痛处作为腧穴，如刺后肿仍不消的，再用锐针刺治。如疼痛正在循行部位而又转筋的，也用火针法，也以病愈为针刺次数，以痛处为腧穴。这种病叫做仲夏痹。</font><br /> <br /> 　　<font >【原文】手少阳之筋，起于小指次指之端，结于腕，上循臂，结于肘，上绕臑外廉、上肩、走颈，合手太阳；其支者，当曲颊入系舌本；其支者，上曲牙，循耳前，属目外眦，上乘颔，结于角o其病当所过者，即支转筋，舌卷。治在燔针劫刺，以知为数，以痛为输，名曰季夏痹也。</font><br /> 　　<font >【翻译】手少阳三焦经之筋，起于无名指之端，结于腕部，向上沿臂结于肘部，又绕臑部的外侧上行，经肩至颈，合于手太阳小肠经之筋。从颈部分出的支筋，当曲颊部深入，系于舌根。由曲颊分出的支筋，上走曲牙处，沿耳前，连属于眼外角，向上经过额部而结于额角。本经之筋所发生的病症有：在经筋所过之处出现转筋、舌卷。治疗时，应当采用火针法，不用迎随手法，以病愈确定针刺次数，以痛处作为腧穴。这种病叫做季夏痹。</font><br /> <br /> 　　<font >【原文】手阳明之筋，起于大指次指之端，结于腕，上循臂，上结于肘外，上臑，结于□；其支者，绕肩胛，挟脊；直者，从肩□上颈；具支者，上颊，结于頄；直者，上出手太阳之前，上左角，络头下右颔，其病当所过者，支痛及转筋，肩不举，颈不可左右视。治在燔针劫刺，以知为数，以痛为输名曰孟夏痹也。</font><br /> 　　<font >【翻译】手阳明大肠经之筋，起于食指之端，结于腕部，沿臂上行，结于肘部，又上行臑部而结于肩髃；由此分出的支筋，绕过肩胛，挟脊柱两侧。其直行之筋，从肩髃上行至颈部。从颈部分出的支筋，上行颊部，而结于颧骨部。其直行之筋，上行出于手太阳经筋的前方，再上行至左额角，络于头部，下行到右颔。本经之筋所发生的病症有：在其筋所经过的部位，发现疼痛、转筋，肩不能举，脖子不能左右顾盼。治疗时，应采取火针法，不用迎随手法，以病愈确定针刺次数，以痛处作为腧穴。这种病叫做孟夏痹。</font><br /> <br /> 　　<font >【原文】手太阴之筋，起于大指之上行，结于鱼后，行寸口外侧，上循臂，结肘中，上臑内廉，入腋下，出缺盆.结肩前□，上结缺盆，下结胸里，散贯贲，合贲下抵季胁。其病当所过者，支转筋，痛甚成息贲，胁急吐血。治在燔针劫刺，以知为数，以痛为输。名曰仲冬痹也。</font><br /> 　　<font >【翻译】手太阴肺经之筋，起于手大指的上端，沿指向胸，结于鱼际之后，又从寸口外侧沿臂上行，结于肘中，上行臑部内侧，入于腋下，上出缺盆，结于肩髃前方，再上结于缺盆，下行络于胸中，分散贯穿贲门下面，下至软肋部。本经之筋所发生的病症有：在它循行经过的部位，下肢转筋、疼痛，严重时发展成息贲症，胁下拘急、吐血。治疗时，应当采取火针法，不用迎随手法，以病愈确定针剌次数，以痛处作为腧穴。这种病叫做仲冬痹。</font><br /> <br /> 　　<font >【原文】手心主之筋，起于中指，与太阴之筋并行，结于肘内廉，上臂阴结腋下，下散前后挟胁；其支者，入腋，散胸中，结于臂。其病当所过者，支转筋前及胸痛息贲。治在燔针劫刺，以知为数，以痛为输，名曰孟冬痹也。</font><br /> 　　<font >【翻译】手厥阴心包络经之筋，起于中指，与手太阴肺经之筋并行，结于肘内侧，上行臂内侧，结于腋下，下行分散前后而夹胁肋。从胁下分出的支筋，入于腋下，散布于胸中，结于贲门。本经之筋所发生的病症有：在其经过的部位出现转筋，胸痛，息贲。治疗时，应采用火针法，不用迎随手法，以病愈确定针刺次数，以痛处作为腧穴。这叫做孟冬痹。</font><br /> <br /> 　　<font >【原文】手少阴之筋，起于小指之内恻，结于锐骨，上结肘内廉，上入腋，交太阴，挟乳里，结于胸中，循臂下系于脐。其病内急心承伏梁，下为肘网。其病当所过者，支转筋，筋痛。治在燔针劫刺，以知为数，以痛为输。其成伏梁唾血脓者，死不治。</font><br /> 　　<font >【翻译】手少阴心经之筋，起于小指的内侧，结于锐骨，上行结于肘部内侧，再上行入于腋下，与手太阴肺经之筋交叉，伏行于乳里，结于胸中，沿着贲门，向下与脐部相连。本经之筋所发生的病症有：胸内拘急，心下坚积而成伏梁。本筋是肘部屈伸的纲维，本筋经过的部位，有转筋和疼痛的症状。治疗时，应采用火针法，不用迎随手法，以病愈确定针刺次数，以痛处作为腧穴。如果已成伏梁病而吐脓血的，是不可治的死症。这叫做季冬痹。</font><br /> <br /> 　　<font >【原文】经筋之病，寒则反折筋急，热则筋弛纵不收，阴痿不用。阳急则反折阴急则俛不伸。焠刺者，刺寒急也，热则筋纵不收，无用燔针，名曰季冬痹也。足之阳明，手之太阳，筋急则口目为僻，眦急不能卒视治皆如右方也。</font><br /> 　　<font >【翻译】凡是经筋所发生的病，属寒的筋会拘急，属热的筋弛缓不收，阴痿不用。背部的筋拘急就会使人腰脊强直反折，腹部的筋拘急就会使人前俯而不能伸直。火针法是针刺治疗因寒而筋急之病的，若因热而筋弛缓，就不能用火针法了。如果足阳明胃经和手太阳小肠经的筋拘急，就会出现口眼歪斜，眼角拘急，不能全面看到东西。治疗时，可用以上所说的火针法。</font>         <div class="chapter_Turnpage">          <div style="text-align:center;padding-bottom:10px;"></div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-10">
+            <strong>发表时间：2018/10/31 13:07:28
+            </strong>
+        </div>
+        <div class="col-lg-2">
+            <a class="btn btn-default" id="btnDing"><span class="glyphicon glyphicon-thumbs-up"></span>推荐</a>
+            <a class="btn btn-default" id="btnCai"><span class="glyphicon glyphicon-thumbs-down "></span>反对</a>
+        </div>
+    </div>
+    <hr />
+    <div class="row">
+        <div class="col-lg-12">
+            <h4>评论列表</h4>
+            <div class="">
+                <ol id="ulComments">
+                </ol>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <textarea class="form-control" placeholder="说两句吧..." id="txtComment"></textarea><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-1 col-lg-offset-11">
+            <input type="button" class="btn btn-default" value="评论" id="btnPostComment" />
+        </div>
+    </div>
+
+        
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E1B165C8" /></form>
+        
+        
+        <hr />
+        <footer>
+            <p>&copy; 本站所有信息均采集于互联网,如有侵权请联系：qctvip@vip.163.com</p>
+            <div class="hidden">
+            <script src="https://s19.cnzz.com/z_stat.php?id=1275095046&web_id=1275095046" type="text/javascript"></script>
+            </div>
+        </footer>
+    </div>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">用户登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="txtUserName" class="col-sm-2 col-md-5 control-label">用户名</label>
+                            <div class="col-sm-3">
+                                <input type="email" class="form-control" id="txtUserName" placeholder="用户名" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="txtPwd" class="col-sm-2 col-md-5 control-label">密码</label>
+                            <div class="col-sm-3">
+                                <input type="password" class="form-control" id="txtPwd" placeholder="密码" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10 col-md-offset-5">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" />
+                                        记住密码
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="text-left">
+                        <a href="/RegUser.aspx">注册</a>
+                        <a href="/FindPassword.aspx">忘记密码?</a>
+                    </div>
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Visual Studio Browser Link -->
+<script type="application/json" id="__browserLink_initializationData">
+    {"appName":"Unknown","requestId":"44d53f53b0404cc189267c35dbdfe79d"}
+</script>
+<script type="text/javascript" src="http://localhost:3285/f03e4909866e4711a8dd495b7f39e2ba/browserLink" async="async"></script>
+<!-- End Browser Link -->
+
+</body>
+</html>

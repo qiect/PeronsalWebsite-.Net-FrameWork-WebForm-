@@ -1,0 +1,427 @@
+﻿
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+	红领巾社区
+</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!--开启响应式布局-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="description" /><meta name="author" /><link rel="icon" href="/images/logo.jpg" /><link href="/js/bootstrap/css/bootstrap.css" rel="stylesheet" />
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/js/common.js"></script>
+    <style>
+        /*
+        * Style tweaks
+        * --------------------------------------------------
+        */
+        html,
+        body {
+            overflow-x: hidden; /* Prevent scroll on narrow devices */
+            /*font-family: KaiTi;*/
+        }
+
+        body {
+            padding-top: 70px;
+        }
+
+        footer {
+            padding: 30px 0;
+        }
+    </style>
+    <script type="text/javascript">
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        var loginFinish = function (data) {
+            if (data == "ok") {
+                //alert("成功");
+                $("#divLogin").dialog("close"); //登录成功关闭窗口
+                checkLogin();//登录成功，刷新登录区域的显示
+            }
+            else {
+                alert("用户名密码错误");
+            }
+        };
+        $(function () {
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+
+        $(function () {
+            //绑定菜单列表
+            $.post("/ajax/GetChannel.ashx", { "action": "parent" }, function (data) {
+                var chas = $.parseJSON(data);
+                for (var i = 0; i < chas.length; i++) {
+                    var cha = chas[i];
+                    $('<li><a href="/Art/ViewChannel.aspx?id=' + cha.Id + '">' + cha.Name + '</a></li>').appendTo("#header-menu");
+                }
+            })
+        })
+    </script>
+    
+    
+    
+    
+    <script src="/js/common.js"></script>
+    <script type="text/javascript">
+        //提交评论完成后的处理
+        var postFinish = function (data) {
+            //var oEditor = CKEDITOR.instances.txtComment;
+            if (data == "ok") {
+                //把评论的内容添加到界面上
+                $("<li>"+$("#txtComment").val()+"</li>").appendTo("#ulComments");
+                //$("<li>" + oEditor.getData() + "</li>").appendTo("#ulComments");
+
+
+            }
+            else if (data == "mod") {
+                alert("等待审核");
+            }
+            else if (data == "banned") {
+                alert("您的评论内容含有禁用词汇，请注意文明用语！");
+            }
+            else {
+                alert("服务器返回错误:" + data);
+            }
+            //清空CKEditor
+            //oEditor.setData("");//设置txtComment的内容也不能影响CKEditor
+            $("#txtComment").val("");//评论提交成功后清除文本框
+        };
+        $(function () {
+            //启动的时候通过ajax加载评论
+            $.post("/ajax/GetComments.ashx", { "articleId": "178" },
+            function (data) {
+                var comments = $.parseJSON(data);//和eval一样是把json字符串转换为对象
+                for (var i = 0; i < comments.length; i++) {
+                    //把每条评论添加到ulComments上
+                    var comment = comments[i];
+                    $("<li>" + ubbToHtml(comment.Msg) + "</li>").appendTo("#ulComments");
+                }
+            });
+            //todo:做静态页的时候思考为什么通过ajax加载评论，为什么有的网站在另外一个页面显示评论
+            $("#btnPostComment").click(function () {
+                var msg = $("#txtComment").val();
+                //判断是否为空
+                if (msg == null || msg == "" || msg == undefined) {
+                    alert("请输入评论内容");
+                    return;
+                }
+                //CKEditor是把原先的textarea替换（replace）调，然后画自己的内容，所以读取textarea的value并不能得到CKEditor当前编辑的内容
+                //var oEditor = CKEDITOR.instances.txtComment;
+                //var msg = oEditor.getData();
+                //通过ajax提交评论
+                $.post("/ajax/PostComment.ashx",
+                    { "articleId": "178", "msg": msg },
+                    postFinish);
+            });
+        });
+
+        //    $(function () {
+        //        CKEDITOR.replace('txtComment',
+        //{
+        //    extraPlugins: 'bbcode',
+        //    removePlugins: 'bidi,button,dialogadvtab,div,filebrowser,flash,format,forms,horizontalrule,iframe,indent,justify,liststyle,pagebreak,showborders,stylescombo,table,tabletools,templates',
+        //    toolbar:
+        //    [
+        //        ['Source', '-', 'Save', 'NewPage', '-', 'Undo', 'Redo'],
+        //        ['Find', 'Replace', '-', 'SelectAll', 'RemoveFormat'],
+        //        ['Link', 'Unlink', 'Image'],
+        //        '/',
+        //        ['FontSize', 'Bold', 'Italic', 'Underline'],
+        //        ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+        //        ['TextColor', '-', 'Smiley', 'SpecialChar', '-', 'Maximize']
+        //    ],
+        //    smiley_images:
+        //    [
+        //        'regular_smile.gif', 'sad_smile.gif', 'wink_smile.gif', 'teeth_smile.gif', 'tounge_smile.gif',
+        //        'embaressed_smile.gif', 'omg_smile.gif', 'whatchutalkingabout_smile.gif', 'angel_smile.gif', 'shades_smile.gif',
+        //        'cry_smile.gif', 'kiss.gif'
+        //    ],
+        //    smiley_descriptions:
+        //    [
+        //        'smiley', 'sad', 'wink', 'laugh', 'cheeky', 'blush', 'surprise',
+        //        'indecision', 'angel', 'cool', 'crying', 'kiss'
+        //    ]
+        //});
+        //    });
+    </script>
+    <script type="text/javascript">
+        var rateFinish = function (data) {
+            if (data == "duplicate") {
+                alert("同一段视频24小时之内只能打分一次");
+            }
+            else {
+                alert("打分成功");
+            }
+        }
+        var imgStyle = function () {
+            $("img").addClass("img-responsive");
+        }
+
+        $(function () {
+            imgStyle();
+            $("#btnDing").button({
+                icons: { primary: 'ui-icon-check' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "178", "action": 1 }, rateFinish);
+            });
+            $("#btnCai").button({
+                icons: { primary: 'ui-icon-closethick' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "178", "action": -1 }, rateFinish);
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/Index.aspx">红领巾社区</a>
+            </div>
+            <div id="navbar" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav" id="header-menu">
+                    <li class="active"><a href="/Index.aspx">首页</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li id="divLoginArea">
+                        <a href="javascript:;" onclick="modaldemo()">登录</a>
+                    </li>
+                    <li id="divLoginOutArea" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">欢迎您，<span id="spanUserName"></span><span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/FindPassword.aspx">修改密码</a></li>
+                            <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+            </div>
+
+            <!-- /.nav-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- /.navbar -->
+    <div class="container">
+        <form method="post" action="./ViewArticle.aspx?id=178" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTIwNzQ0MjkzMjhkZNbbeL38Ox0VsgdXW+ie5WCZQJ22fxZlT9COXWbfTw20" />
+
+            
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="text-primary">
+                幼儿园资产证券化引发讨论：营利不等于盈利，审查或将更严格<br />
+            </h4>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <p>
+	&nbsp;</p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6040609974/1000" /></p>
+<p class="one-p">
+	2017年5月，教育部公布《关于实施第三期学前教育行动计划的意见》，意见中提出普惠性幼儿园覆盖率将达到80%左右。</p>
+<p class="one-p">
+	如今《意见》已颁布一年半左右时间，无论是上市公司，还是幼儿园标的，都在&ldquo;等&rdquo;&mdash;&mdash;只有亲眼看到靴子以何种形式落地，各地又将给这只靴子作何种配套，才能决定下一步在幼儿园资产证券化中如何有针对性地操作。</p>
+<p class="one-p">
+	各地陆续有关于《意见》的细化政策出台，行业中也出现了对《意见》和各地配套细则解读的声音。值此微妙的时点，蓝鲸教育与多位幼教领域资深工作者深入沟通，了解各方对未来幼儿园资产证券化的看法，以供广大读者参考。</p>
+<p class="one-p">
+	&ldquo;二八分&rdquo;的《意见》，在一线城市推进缓慢</p>
+<p class="one-p">
+	一位负责幼儿园并购的上市公司高管对蓝鲸教育表示，&ldquo;其实目前业内&lsquo;普惠与高端&rsquo;的说法不够严谨&rdquo;。严格意义上按照新民促法送审稿的条例，应分成营利性和非营利性两类。</p>
+<p class="one-p">
+	<strong>从目前的市场情况看，大部分中高端幼儿园可能选择转为营利性。至于中游水准及以下的园所，更多地会选择转为普惠园。</strong>&ldquo;因为选择不盈利，政府会予以扶持&rdquo;。但据其日常考察标的发现，市场中普惠园与高端园的部分界限实际上较为模糊。</p>
+<p class="one-p">
+	&ldquo;之前看过一个标的，每个孩子收费800元/月。在百姓眼中这是实打实的普惠园。但该园占地面积37亩，包括地皮、园所硬件设施全由当地政府出资，政府光建设就斥资近一亿元，每年还给800万的补贴。该幼儿园游泳池、演播厅等高端园应有的硬件都有、甚至更好，每年毛利能达到700-800万元；<strong>但扣除800万的政府补贴，它的确基本上就是0利润、非营利性的。那它到底算是普惠园还是高端园&rdquo;？</strong></p>
+<p class="one-p">
+	<strong>更重要的是，目前&ldquo;二八原则&rdquo;的执行，推动起来较为困难。</strong>一位教育行业资深证券分析师告诉蓝鲸教育，在北上广等一线城市，推广普惠园可能未必符合市场需求。&ldquo;例如一个中高端园所，班额小环境优，甚至还有各类素质教育课程。转为普惠园后，必然会从班额、环境、附加服务等方面压缩成本&rdquo;。</p>
+<p class="one-p">
+	这种情况的出现有利有弊，好处在于低收入家庭的孩子有园可上，但弊端则是&ldquo;服务质量下降&rdquo;。<strong>问题在于北上广等一线城市，&ldquo;有很多家长愿意花钱让孩子去好的幼儿园，需求足够强烈&rdquo;。</strong>所以相关政策在一线城市，推动起来比较缓慢。</p>
+<p class="one-p">
+	还有一个问题需广大幼教工作者重视：如今市场中大量的中端园，未来生存可能更为艰难。上述分析师指出，&ldquo;目前中端民办园的生存空间被压缩&rdquo;。</p>
+<p class="one-p">
+	一方面，中端园从综合性价比上看，与普惠园相比竞争力明显不足。另一方面，<strong>中端园未来发展好坏与各地根据《意见》制定的具体配套政策密切相关。</strong>《意见》提出的&ldquo;二八开&rdquo;，经济发达地区的教育监管部门可能会用较温和的、例如新建普惠园的手法去执行政策。<strong>&ldquo;但经济欠发达地区，地方教育监管部门的政策要求对中端园影响很大&rdquo;。</strong></p>
+<p class="one-p">
+	虽然阻力重重，但幼儿园资产证券化的乱象亟需整治。前文中的上市公司高管对蓝鲸教育指出，&ldquo;据我了解，北京三环和四环以内各有一个幼儿园，其中一个占地4000多平米。两个园一个年租金是0，另一个是30万。两个园中的一个刚刚被某个上市公司纳入体内&rdquo;。</p>
+<p class="one-p">
+	在他看来，如果按严格的市场标准卡，该园一年至少要多付700-800万的租金。<strong>&ldquo;享受国家如此大的优惠去资本化，监管部门必然严查&rdquo;。</strong>据其了解，根植于灰色地带的例子还有很多。&ldquo;例如在美上市的博实乐，严格意义上在中国九年义务教育绝对不能盈利；再比如红黄蓝旗下大量幼儿园都是非营利性的&rdquo;，他们大多是通过搭建架构的方式资本化，<strong>&ldquo;这种资本化经不起推敲，前一阵子香港教育股大跌，风险一下子就暴露了&rdquo;。</strong></p>
+<p class="one-p">
+	&ldquo;营利不等于盈利&rdquo;，幼教资本化审查或将越发严格</p>
+<p class="one-p">
+	离靴子落地的时间不断缩短。未来，上市公司和幼儿园该如何应对政策细化？蓝鲸教育与数位教育行业资深工作者深入交流，了解他们的看法。</p>
+<p class="one-p">
+	<strong>&ldquo;从上市的角度出发，跟普惠还是高端没关系，还是要看园所的法人属性&rdquo;，</strong>锦天城律师事务所合伙人何周指出。在他看来，影响上市的因素很多，转为普惠园影响的是收入和利润率，从收益角度看的确对公司上市有一定影响。<strong>&ldquo;营利不等于盈利，这是两种不同的概念。</strong>政府补贴某种意义上与政府购买服务相似，不可能给园所过高的利润，核价空间清晰可见&rdquo;。</p>
+<p class="one-p">
+	对很多幼教集团来说，基于不同考虑和策略，将旗下标的分成不同档次的品牌，从财务、品牌影响力和民生等角度出发做差异化经营可以理解。<strong>且从现行法律角度出发，无论是高端、中端还是普惠，对上市而言没有严格障碍。</strong></p>
+<p class="one-p">
+	且未必经营普惠园就一定会丧失利润空间，&ldquo;极端点说，假设高端园能招10个人，普惠园能招100个人；高端降维成普惠，单纯从客流量+客单价的角度出发，未必会亏&mdash;&mdash;<strong>这是一个盈亏平衡点的问题&rdquo;，</strong>他指出。</p>
+<p class="one-p">
+	华泰证券教育行业分析师王莎莎则对蓝鲸教育表示，目前上市公司管理旗下幼儿园标的主要有两种方法&mdash;&mdash;香港和海外用VIE结构，内地更多是设置管理架构公司。实际上那些幼儿园标的大多是非营利的，&ldquo;所以未来如何操作，具体还要看各地细化政策的要求&rdquo;。</p>
+<p class="one-p">
+	上市公司体系内的幼儿园如果因各种原因转为普惠园，对上市公司而言是一种风险，&ldquo;虽然可以压缩成本、获得补贴；但盈利模型变了，利润率可能下降&rdquo;。<strong>且上市公司收购普惠园基本不可能，&ldquo;因为普惠园已经拿到补贴，转为非营利性的。若再转回营利性，就需补缴之前因设置成非营利性所无需缴纳的费用，成本很高&rdquo;。</strong></p>
+<p class="one-p">
+	电光教育集团CEO张亮，则从上市公司并购幼儿园的角度出发，给出了他的答案：<strong>&ldquo;上市公司需要把旗下幼儿园标的转为营利性&rdquo;。</strong></p>
+<p class="one-p">
+	因为未上市企业大多会使用各种手段将幼儿园的利润挪到体外，确保一年算下来利润是0、无需缴税。&ldquo;但上市公司旗下的幼儿园利润不可能为0，故上市公司大多需要在幼儿园上面设置一个管理公司&rdquo;，所以在张亮看来，上市公司可能更希望把旗下幼儿园转成营利性，<strong>&ldquo;转不转都要缴税，上市公司何必多搭一个管理公司的架构&rdquo;。</strong></p>
+<p class="one-p">
+	据其了解，虽然《意见》出台已一年半有余，但市场中大部分幼儿园还在观望。<strong>&ldquo;一是国家特别具有针对性的政策还没出台，二是各地配套政策也没下来，地方教育部门也在摸索&rdquo;。</strong>因此他如今再看幼儿园标的，对资质有明确要求，&ldquo;现在我们再看幼儿园，其一定要有转成营利性的资质。不能与政府补贴有联系，否则未来都可能出现政策风险&rdquo;。</p>
+<p class="one-p">
+	他认为，未来幼儿园标的装到上市公司体内<strong>只能分两种情况：</strong></p>
+<p class="one-p">
+	一种是完全合规合法、扎实运营的营利性幼儿园。另外一种则是给非营利性幼儿园提供服务的管理公司，且那种&ldquo;一个管理人员+一个财务人员就能创造几千万利润&rdquo;的架构公司未来也难生存，只有管理公司设置正规团队提供真实服务的，才没有政策风险。<strong>此时&ldquo;这种公司也不是幼儿园标的了，而是给幼儿园提供服务的公司&rdquo;。</strong></p>
+
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-10">
+            <strong>发表时间：2018/10/31 8:11:38
+            </strong>
+        </div>
+        <div class="col-lg-2">
+            <a class="btn btn-default" id="btnDing"><span class="glyphicon glyphicon-thumbs-up"></span>推荐</a>
+            <a class="btn btn-default" id="btnCai"><span class="glyphicon glyphicon-thumbs-down "></span>反对</a>
+        </div>
+    </div>
+    <hr />
+    <div class="row">
+        <div class="col-lg-12">
+            <h4>评论列表</h4>
+            <div class="">
+                <ol id="ulComments">
+                </ol>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <textarea class="form-control" placeholder="说两句吧..." id="txtComment"></textarea><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-1 col-lg-offset-11">
+            <input type="button" class="btn btn-default" value="评论" id="btnPostComment" />
+        </div>
+    </div>
+
+        
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E1B165C8" /></form>
+        
+        
+        <hr />
+        <footer>
+            <p>&copy; 本站所有信息均采集于互联网,如有侵权请联系：qctvip@vip.163.com</p>
+            <div class="hidden">
+            <script src="https://s19.cnzz.com/z_stat.php?id=1275095046&web_id=1275095046" type="text/javascript"></script>
+            </div>
+        </footer>
+    </div>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">用户登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="txtUserName" class="col-sm-2 col-md-5 control-label">用户名</label>
+                            <div class="col-sm-3">
+                                <input type="email" class="form-control" id="txtUserName" placeholder="用户名" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="txtPwd" class="col-sm-2 col-md-5 control-label">密码</label>
+                            <div class="col-sm-3">
+                                <input type="password" class="form-control" id="txtPwd" placeholder="密码" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10 col-md-offset-5">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" />
+                                        记住密码
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="text-left">
+                        <a href="/RegUser.aspx">注册</a>
+                        <a href="/FindPassword.aspx">忘记密码?</a>
+                    </div>
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Visual Studio Browser Link -->
+<script type="application/json" id="__browserLink_initializationData">
+    {"appName":"Unknown","requestId":"ae714be8f25c4386b5cd845a9e9a0f07"}
+</script>
+<script type="text/javascript" src="http://localhost:3285/f03e4909866e4711a8dd495b7f39e2ba/browserLink" async="async"></script>
+<!-- End Browser Link -->
+
+</body>
+</html>

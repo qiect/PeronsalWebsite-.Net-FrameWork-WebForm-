@@ -1,0 +1,51 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+    <style>
+        html,body{height:100%}
+        div.left {
+            float: left;
+            width: 40%;
+            height: 95%;
+            margin: 10px;
+        }
+        div.right{
+            float:right;
+            width:57%;
+            height:95%;
+            margin:10px;
+            overflow-x:auto;
+            overflow-y:auto;
+        }
+        pre{
+            padding:16px;
+            overflow:auto;
+            font-size:85%;
+            line-height:1.45;
+            background-color:#f6f8fa;
+            border-radius:3px;
+        }
+
+    </style>
+    <script src="../js/showdown/showdown.min.js"></script>
+    <script src="../js/jquery.min.js"></script>
+    <script type="text/javascript">
+        function convert() {
+            var $text = $("#txtMsg").val();
+            var converter = new showdown.Converter();
+            var html = converter.makeHtml($text);
+            $("div.right").html(html);
+
+        }
+    </script>
+</head>
+<body>
+    <div class="left">
+        <textarea id="txtMsg" style="width:100%;height:100%;" onkeyup="convert()"></textarea>
+    </div>
+    <div class="right">
+    </div>
+</body>
+</html>

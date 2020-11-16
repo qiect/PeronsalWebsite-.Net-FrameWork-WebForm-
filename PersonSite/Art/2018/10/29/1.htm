@@ -1,0 +1,481 @@
+﻿
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+	红领巾社区
+</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!--开启响应式布局-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="description" /><meta name="author" /><link rel="icon" href="/images/logo.jpg" /><link href="/js/bootstrap/css/bootstrap.css" rel="stylesheet" />
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/js/common.js"></script>
+    <style>
+        /*
+        * Style tweaks
+        * --------------------------------------------------
+        */
+        html,
+        body {
+            overflow-x: hidden; /* Prevent scroll on narrow devices */
+            /*font-family: KaiTi;*/
+        }
+
+        body {
+            padding-top: 70px;
+        }
+
+        footer {
+            padding: 30px 0;
+        }
+    </style>
+    <script type="text/javascript">
+        function modaldemo() {
+            $("#modal-demo").modal("show");
+        }
+        //向服务器请求当前登录状态，然后切换登录区域的显示
+        var checkLogin = function () {
+            $.post("/ajax/CheckLogin.ashx", function (data) {
+                var strs = data.split("|");
+                if (strs[0] == "no") {
+                    //alert("木有登陆");
+                    $("#divLoginArea").show();
+                    $("#divLoginOutArea").hide();
+                }
+                else {
+                    //切换“登录”、“注销”的两个层
+                    $("#divLoginArea").hide();
+                    $("#divLoginOutArea").show();
+                    $("#spanUserName").text(strs[1]);//把当前登录用户名显示出来
+                }
+            });
+        }
+
+        var loginFinish = function (data) {
+            if (data == "ok") {
+                //alert("成功");
+                $("#divLogin").dialog("close"); //登录成功关闭窗口
+                checkLogin();//登录成功，刷新登录区域的显示
+            }
+            else {
+                alert("用户名密码错误");
+            }
+        };
+        $(function () {
+            $("#btnLogin").click(function () {
+                //todo:检验用户名、密码不能为空
+                var username = $("#txtUserName").val();
+                var password = $("#txtPwd").val();
+                $.post("/ajax/UserLogin.ashx",
+                    { "username": username, "password": password },
+                    function (data) {
+                        if (data == "ok") {
+                            $("#modal-demo").modal("hide");
+                            checkLogin();//登录成功，刷新登录区域的显示
+                        }
+                        else {
+                            alert("用户名密码错误");
+                        }
+                    });
+            });
+        });
+
+        $(function () {
+            checkLogin();//刚进入页面的时候也是先向服务器查询当前登录状态
+            $("#btnLogout").click(function () {
+                $.post("/ajax/Logout.ashx", function () {
+                    checkLogin();//刷新显示
+                });
+            });
+        });
+
+        $(function () {
+            //绑定菜单列表
+            $.post("/ajax/GetChannel.ashx", { "action": "parent" }, function (data) {
+                var chas = $.parseJSON(data);
+                for (var i = 0; i < chas.length; i++) {
+                    var cha = chas[i];
+                    $('<li><a href="/Art/ViewChannel.aspx?id=' + cha.Id + '">' + cha.Name + '</a></li>').appendTo("#header-menu");
+                }
+            })
+        })
+    </script>
+    
+    
+    
+    
+    <script src="/js/common.js"></script>
+    <script type="text/javascript">
+        //提交评论完成后的处理
+        var postFinish = function (data) {
+            //var oEditor = CKEDITOR.instances.txtComment;
+            if (data == "ok") {
+                //把评论的内容添加到界面上
+                $("<li>"+$("#txtComment").val()+"</li>").appendTo("#ulComments");
+                //$("<li>" + oEditor.getData() + "</li>").appendTo("#ulComments");
+
+
+            }
+            else if (data == "mod") {
+                alert("等待审核");
+            }
+            else if (data == "banned") {
+                alert("您的评论内容含有禁用词汇，请注意文明用语！");
+            }
+            else {
+                alert("服务器返回错误:" + data);
+            }
+            //清空CKEditor
+            //oEditor.setData("");//设置txtComment的内容也不能影响CKEditor
+            $("#txtComment").val("");//评论提交成功后清除文本框
+        };
+        $(function () {
+            //启动的时候通过ajax加载评论
+            $.post("/ajax/GetComments.ashx", { "articleId": "83" },
+            function (data) {
+                var comments = $.parseJSON(data);//和eval一样是把json字符串转换为对象
+                for (var i = 0; i < comments.length; i++) {
+                    //把每条评论添加到ulComments上
+                    var comment = comments[i];
+                    $("<li>" + ubbToHtml(comment.Msg) + "</li>").appendTo("#ulComments");
+                }
+            });
+            //todo:做静态页的时候思考为什么通过ajax加载评论，为什么有的网站在另外一个页面显示评论
+            $("#btnPostComment").click(function () {
+                var msg = $("#txtComment").val();
+                //判断是否为空
+                if (msg == null || msg == "" || msg == undefined) {
+                    alert("请输入评论内容");
+                    return;
+                }
+                //CKEditor是把原先的textarea替换（replace）调，然后画自己的内容，所以读取textarea的value并不能得到CKEditor当前编辑的内容
+                //var oEditor = CKEDITOR.instances.txtComment;
+                //var msg = oEditor.getData();
+                //通过ajax提交评论
+                $.post("/ajax/PostComment.ashx",
+                    { "articleId": "83", "msg": msg },
+                    postFinish);
+            });
+        });
+
+        //    $(function () {
+        //        CKEDITOR.replace('txtComment',
+        //{
+        //    extraPlugins: 'bbcode',
+        //    removePlugins: 'bidi,button,dialogadvtab,div,filebrowser,flash,format,forms,horizontalrule,iframe,indent,justify,liststyle,pagebreak,showborders,stylescombo,table,tabletools,templates',
+        //    toolbar:
+        //    [
+        //        ['Source', '-', 'Save', 'NewPage', '-', 'Undo', 'Redo'],
+        //        ['Find', 'Replace', '-', 'SelectAll', 'RemoveFormat'],
+        //        ['Link', 'Unlink', 'Image'],
+        //        '/',
+        //        ['FontSize', 'Bold', 'Italic', 'Underline'],
+        //        ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+        //        ['TextColor', '-', 'Smiley', 'SpecialChar', '-', 'Maximize']
+        //    ],
+        //    smiley_images:
+        //    [
+        //        'regular_smile.gif', 'sad_smile.gif', 'wink_smile.gif', 'teeth_smile.gif', 'tounge_smile.gif',
+        //        'embaressed_smile.gif', 'omg_smile.gif', 'whatchutalkingabout_smile.gif', 'angel_smile.gif', 'shades_smile.gif',
+        //        'cry_smile.gif', 'kiss.gif'
+        //    ],
+        //    smiley_descriptions:
+        //    [
+        //        'smiley', 'sad', 'wink', 'laugh', 'cheeky', 'blush', 'surprise',
+        //        'indecision', 'angel', 'cool', 'crying', 'kiss'
+        //    ]
+        //});
+        //    });
+    </script>
+    <script type="text/javascript">
+        var rateFinish = function (data) {
+            if (data == "duplicate") {
+                alert("同一段视频24小时之内只能打分一次");
+            }
+            else {
+                alert("打分成功");
+            }
+        }
+        var imgStyle = function () {
+            $("img").addClass("img-responsive");
+        }
+
+        $(function () {
+            imgStyle();
+            $("#btnDing").button({
+                icons: { primary: 'ui-icon-check' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "83", "action": 1 }, rateFinish);
+            });
+            $("#btnCai").button({
+                icons: { primary: 'ui-icon-closethick' }
+            }).click(function () {
+                $.post("/ajax/RateArticle.ashx",
+                { "articleId": "83", "action": -1 }, rateFinish);
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/Index.aspx">红领巾社区</a>
+            </div>
+            <div id="navbar" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav" id="header-menu">
+                    <li class="active"><a href="/Index.aspx">首页</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li id="divLoginArea">
+                        <a href="javascript:;" onclick="modaldemo()">登录</a>
+                    </li>
+                    <li id="divLoginOutArea" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">欢迎您，<span id="spanUserName"></span><span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/FindPassword.aspx">修改密码</a></li>
+                            <li><a href="javascript:;" id="btnLogout">注销</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+            </div>
+
+            <!-- /.nav-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- /.navbar -->
+    <div class="container">
+        <form method="post" action="./ViewArticle.aspx?id=83" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTIwNzQ0MjkzMjhkZNbbeL38Ox0VsgdXW+ie5WCZQJ22fxZlT9COXWbfTw20" />
+
+            
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="text-primary">
+                刚刚，巴西也选出了个“特朗普”！中国又要难受了？<br />
+            </h4>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <p class="one-p">
+	<strong>就在刚才，被称为&ldquo;巴西版特朗普&rdquo;的巴西极右翼政客波索纳罗（Jair Bolsonaro），以明显的优势（55%对44%）赢得了2018年的巴西总统大选的第二轮选举，即将成为新一届巴西总统。</strong></p>
+<p class="one-p">
+	<strong>不过，比起西方舆论给他打上的种种&ldquo;反智&rdquo;、&ldquo;侵犯人权&rdquo;、&ldquo;不尊重女性&rdquo;、&ldquo;恐惧同性恋&rdquo;、&ldquo;反民主&rdquo;乃至&ldquo;法西斯&rdquo;的标签，或是巴西国内的支持者对他&ldquo;反腐&rdquo;、&ldquo;打击暴力犯罪&rdquo;和&ldquo;重振经济&rdquo;等承诺的拥护，咱们中国人更关心的自然是他执政后的对华政策&mdash;&mdash;尤其是他会不会也像特朗普一样也对中国&ldquo;乱来&rdquo;？</strong></p>
+<p class="one-p">
+	<strong>而从目前西方媒体的报道来看，情况还挺复杂的&hellip;..</strong></p>
+<p class="one-p">
+	<strong>反华？</strong></p>
+<p class="one-p">
+	<strong>&ldquo;波索纳罗的反华言论令中国很担忧！&rdquo;&mdash;&mdash;几天前，英国路透社就刊登了一篇挂着这个大标题的报道。</strong></p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653948/1000" /></p>
+<p class="one-p">
+	而路透社之所以会抛出这般抓眼的标题，是因为波索纳罗在最近接受采访时曾经表示他反对中国买走巴西关键的能源、农业、矿产等核心产业乃至巴西的国土。</p>
+<p class="one-p">
+	<strong>路透社还报道说，波索纳罗曾几次表示&ldquo;中国人并不是在与巴西做买卖，而是在买走巴西&rdquo;。</strong></p>
+<p class="one-p">
+	因此，一些巴西的中资企业的管理人员便对路透社表示，他们对于波索纳罗这种&ldquo;偏激&rdquo;的观点比较担心，害怕他的上台会导致中巴两国合作的项目出现较大对于中方不利的调整。</p>
+<p class="one-p">
+	另外，路透社还透露波索纳罗去年还曾表示打算把外交政策和贸易的重心转向美国，而在今年2月的时候，他还成为了自1974年巴西与中国建交以来首个&ldquo;访问&rdquo;台湾的巴西总统候选人。</p>
+<p class="one-p">
+	当时，中国驻巴西大使馆也严厉谴责了他的这一做法，称这是对中国主权和领土完整的冒犯。</p>
+<p class="one-p">
+	<strong>总之，从这些言行来看，波索纳罗的立场似乎是比较排斥中国，甚至有些反华的。而路透社还担心波索纳罗如果把这种观点带到巴西新一届政府的对华关系中去，甚至效仿特朗普对中国发动另一场贸易战，那么中国会很难受。</strong></p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653953/1000" /></p>
+<p class="one-p">
+	<strong>无知？</strong></p>
+<p class="one-p">
+	<strong>不过，多位接受英国BBC采访的巴西学者认为波索纳罗的&ldquo;反华&rdquo;言论，主要源于他并不了解中国，对中国的认知很大程度上源于自己的偏见和想象，而且如果他上台后真要对中国这般&ldquo;强硬&rdquo;，只会损害巴西自己的利益。</strong></p>
+<p class="one-p">
+	巴西FGV大学的中巴关系专家卡尔瓦霍（Evandro Meneses de Carvalho）就指出，波索纳罗对于中国的认知非常&ldquo;过时&rdquo;，以为中国仍然是个在向全世界输出&ldquo;共产主义革命&rdquo;的国家，但从上世纪70年代末期起，中国就已经放弃了意识形态为主的外交政策，转而走上了一条以经济发展为主的务实外交道路。</p>
+<p class="one-p">
+	卡尔瓦霍还说，从巴西和中国过去数十年的交往来看，两国关系也从不是建立在&ldquo;意识形态&rdquo;的基础上。</p>
+<p class="one-p">
+	所以，卡尔瓦霍认为来自巴西极右阵营、并对上世纪60年代&ldquo;反共&rdquo;的巴西军政府充满好感的波索纳罗，在2018年的今天应该摒弃陈旧的&ldquo;反共&rdquo;意识形态偏见，客观认识与中国的关系。</p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653918/1000" /></p>
+<p class="one-p">
+	<strong>在清华大学公共政策与管理学院从事中巴关系研究的巴西学者米兰达（Ot&aacute;vio Costa Miranda）则对比了中美关系与中巴关系。他说，美国总统特朗普对中国强硬是因为美国要重新平衡与中国的贸易关系，尤其是要消除对华贸易逆差，可巴西对中国的贸易则一直是盈利的。</strong></p>
+<p class="one-p">
+	因此，米兰达认为波索纳罗真要学特朗普那样对中国强硬，反而会招致来自国际和巴西国内极为猛烈的反对。</p>
+<p class="one-p">
+	<strong>确实，数据显示中国是巴西产品最大的客户，也是巴西国际贸易中最大&ldquo;顺差&rdquo;来源国。去年一年巴西对中国的贸易顺差是201亿美元，而今年第一季度巴西对中国贸易顺差也有41.2亿美元。其中巴西的农业和矿业尤其仰仗中国的市场，大豆、铁矿石和原油更是两国贸易的重中之重。</strong></p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653942/1000" /></p>
+<p class="one-p">
+	实际上，波索纳罗对于中国并不友好的言论已经引起巴西农业大户以及矿业巨头们的不悦。路透社的报道就指出，巴西国会中40%的席位都掌握在该国的农业大户手上，而这些波索纳罗重要的支持者已经明确表示巴西新政府必须维护好与中国的关系，不得在对华关系上乱来。</p>
+<p class="one-p">
+	巴西政府的一位前高官还在接受路透社采访时补充说，尽管中美贸易战令巴西诸如大豆这样的农产品进一步从与中国的贸易中获利，巴西却没有失去这个最大客户的资本，&ldquo;因为全世界没有一个经济体有中国这样庞大的市场空间。&rdquo;</p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653974/1000" /></p>
+<p class="one-p">
+	▲截图自路透社</p>
+<p class="one-p">
+	巴西政府的一位前高官还在接受路透社采访时补充说，尽管中美贸易战令巴西诸如大豆这样的农产品进一步从与中国的贸易中获利，巴西却没有失去这个最大客户的资本，&ldquo;因为全世界没有一个经济体有中国这样庞大的市场空间。&rdquo;</p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653908/1000" /></p>
+<p class="one-p">
+	<strong>&ldquo;反华就是在搬起石头砸巴西自己的脚，是在损害巴西自己的利益&rdquo;，前文提到的那位巴西FGV大学的学者卡尔瓦霍如此直白地对BBC表示。</strong></p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653935/1000" /></p>
+<p class="one-p">
+	▲截图来自BBC的报道</p>
+<p class="one-p">
+	<strong>但担忧归担忧，不少巴西学者以及企业界人士目前还是倾向于认为波索纳罗对中国不友好的言论只是为了&ldquo;拉票&rdquo;而说出的一些&ldquo;狠话&rdquo;，实际意义并不大。</strong></p>
+<p class="one-p">
+	巴西FGV大学的国际关系学教授施廷克尔（Oliver Stuenkel）还在一篇文章中表示，波索纳罗的&ldquo;反华&rdquo;言论在巴西民间也激不起什么反响，因为中国在巴西等拉美国家的活动很&ldquo;低调&rdquo;，没有政治价值观的输出，也不会去干涉这些国家的内政，所以&ldquo;批中国&rdquo;的言论对巴西人来说其实是&ldquo;无感&rdquo;的。</p>
+<p class="one-p">
+	&ldquo;波索纳罗涉及中国的言论其实已经越来越少了，因为比起用中国做文章，还是利用女权、同性恋以及人权等话题制造恐慌，更能吓唬到他的选民&rdquo;，施廷克尔说。</p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653921/1000" /></p>
+<p class="one-p">
+	▲截图来自施廷克尔的文章</p>
+<p class="one-p">
+	英国BBC的报道也印证了这一点：波索纳罗在竞选期间曾拿出一份总共81页的施政方案，其中&ldquo;外交&rdquo;仅仅排在最后一项。靠民粹政治竞选的他，主要的关注点自然还是在巴西国内。</p>
+<p class="one-p">
+	▲截图来自BBC的报道</p>
+<p class="one-p">
+	<strong>这也就是说，抛开媒体报道对于波索纳罗当选总统前一系列涉华负面言论的&ldquo;放大&rdquo;效应，他在上台后将如何具体对待中国，其实很大程度上还是一个&ldquo;未知数&rdquo;。</strong></p>
+<p class="one-p">
+	<strong>沟通</strong></p>
+<p class="one-p">
+	最后，对中巴关系有着11年研究经验的浙江外国语大学教授、巴西圣保罗大学政治学博士施若杰（Jos&eacute; Medeiros da Silva）在接受英国BBC采访时坚信，中巴关系不会遭遇大风大浪，两国关系还是会以务实为原则继续发展&mdash;&mdash;毕竟中国的经济影响力和与巴西的关系就摆在那里。</p>
+<p class="one-p">
+	<strong>而在今年6月的时候，在被媒体具体问到当选后会如何对待来自中国的投资时，波索纳罗也做出了一个很有意思的表态，他说尽管他不会允许任何国家买断巴西，但他会继续与中国做生意，因为中国是个&ldquo;很杰出的伙伴&rdquo;。</strong></p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653926/1000" /></p>
+<p class="one-p">
+	当时报道此事的路透社分析认为，他对中国态度上的这种&ldquo;软化&rdquo;，正是支持他的农业群体给他施压了。</p>
+<p class="one-p">
+	同样值得注意的是，波索纳罗十分仰仗的首席经济顾问格德斯（Paulo Guedes）是一位自由市场经济的推崇者，对于中国和巴西经济认知也比波索纳罗成熟。巴西的商界也都对于波索纳罗打算让格德斯来担任巴西的经济部长表示欢迎。</p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653938/1000" /></p>
+<p class="one-p">
+	▲图中左边这位就是格德斯</p>
+<p class="one-p">
+	<strong>另一方面，中国的外交官们目前也认为波索纳罗发表的涉华争议言论，是可以通过对话和沟通而化解的。</strong></p>
+<p class="one-p">
+	在接受巴西媒体采访时，中国驻巴西大使馆的公参瞿瑜辉就表示波索纳罗的言论反应出了他对于两国关系的战略意义缺乏足够的认知，但他也表示愿意和巴西新政府就如何更好地推动两国关系展开对话沟通，并希望新任巴西政府能够继续沿着推动两国关系健康发展的道路走下去，因为这对两国人民都有巨大的好处。</p>
+<p class="one-p">
+	瞿公参还在接受路透社采访时透露，他已经邀请波索纳罗的首席经济顾问格德斯访华，以便更好地增进波索纳罗的团队对中国的了解。</p>
+<p class="one-p">
+	同时，路透社还曝光说波索纳罗团队的另一个核心人物、巴西国会议员洛伦佐尼（Onyx Lorenzoni）也在上周与瞿公参方面进行了会面。洛伦佐尼之后在接受采访时则表示中国是巴西重要的伙伴，两国会继续保持良好的关系，并透露双方会在波索纳罗当选后进一步展开对话。</p>
+<p class="one-p">
+	<img class="content-picture" src="https://inews.gtimg.com/newsapp_bt/0/6039653905/1000" /></p>
+<p class="one-p">
+	但瞿公参也在采访中特别强调了台湾对于中国主权的重要性。而在浙江外国语大学任教授的巴西教授施若杰也特别提醒今年2月以总统候选人的身份&ldquo;访问&rdquo;了台湾的波索纳罗不要再与台湾&ldquo;眉来眼去&rdquo;，甚至与台独搞在一起&mdash;&mdash;因为任何这么做的政府都会招致难以估量的政治和经济后果。</p>
+
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-10">
+            <strong>发表时间：2018/10/29 8:28:32
+            </strong>
+        </div>
+        <div class="col-lg-2">
+            <a class="btn btn-default" id="btnDing"><span class="glyphicon glyphicon-thumbs-up"></span>推荐</a>
+            <a class="btn btn-default" id="btnCai"><span class="glyphicon glyphicon-thumbs-down "></span>反对</a>
+        </div>
+    </div>
+    <hr />
+    <div class="row">
+        <div class="col-lg-12">
+            <h4>评论列表</h4>
+            <div class="">
+                <ol id="ulComments">
+                </ol>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <textarea class="form-control" placeholder="说两句吧..." id="txtComment"></textarea><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-1 col-lg-offset-11">
+            <input type="button" class="btn btn-default" value="评论" id="btnPostComment" />
+        </div>
+    </div>
+
+        
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="E1B165C8" /></form>
+        
+        
+        <hr />
+        <footer>
+            <p>&copy; 本站所有信息均采集于互联网,如有侵权请联系：qctvip@vip.163.com</p>
+            <div class="hidden">
+            <script src="https://s19.cnzz.com/z_stat.php?id=1275095046&web_id=1275095046" type="text/javascript"></script>
+            </div>
+        </footer>
+    </div>
+    <!--登录对话框-->
+    <div id="modal-demo" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content radius">
+                <div class="modal-header">
+                    <h3 class="modal-title">用户登录</h3>
+                    <a class="close" data-dismiss="modal" aria-hidden="true" href="javascript:void();">×</a>
+                </div>
+                <div class="modal-body">
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="txtUserName" class="col-sm-2 col-md-5 control-label">用户名</label>
+                            <div class="col-sm-3">
+                                <input type="email" class="form-control" id="txtUserName" placeholder="用户名" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="txtPwd" class="col-sm-2 col-md-5 control-label">密码</label>
+                            <div class="col-sm-3">
+                                <input type="password" class="form-control" id="txtPwd" placeholder="密码" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10 col-md-offset-5">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" />
+                                        记住密码
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="text-left">
+                        <a href="/RegUser.aspx">注册</a>
+                        <a href="/FindPassword.aspx">忘记密码?</a>
+                    </div>
+                    <button class="btn btn-primary" id="btnLogin">确定</button>
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Visual Studio Browser Link -->
+<script type="application/json" id="__browserLink_initializationData">
+    {"appName":"Unknown","requestId":"5255ca22eea44e5bb995770181b34ec5"}
+</script>
+<script type="text/javascript" src="http://localhost:3285/f03e4909866e4711a8dd495b7f39e2ba/browserLink" async="async"></script>
+<!-- End Browser Link -->
+
+</body>
+</html>
